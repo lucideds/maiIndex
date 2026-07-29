@@ -1,0 +1,27 @@
+services:
+  mai-songs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: maimai-song-downloader
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - DATA_CACHE_DIR=/data/cache
+      - DATA_DB_DIR=/data/db
+      - GITHUB_PAT=${GITHUB_PAT:-}
+      - ENABLE_GITHUB_SYNC=false
+      - MAX_BATCH_SONGS=100
+      - MAX_CONCURRENT_EXPORTS=5
+      - SYNC_CRON=0 */6 * * *
+    volumes:
+      - ./data/cache:/data/cache
+      - ./data/db:/data/db
+      - ./:/data/cache_local:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

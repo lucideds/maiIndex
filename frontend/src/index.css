@@ -1,0 +1,1316 @@
+/* ==========================================================================
+   Maimai DX Song Hub - Minimalist Dark Design System
+   ========================================================================== */
+
+:root {
+  /* Color Palette - Minimalist Dark Slate */
+  --bg-body: #0b0f17;
+  --bg-header: rgba(15, 23, 42, 0.85);
+  --bg-surface: #111827;
+  --bg-surface-hover: #1f2937;
+  --bg-card: #131b2e;
+  --bg-card-hover: #1a243b;
+  --bg-dock: rgba(17, 24, 39, 0.92);
+
+  /* Borders & Dividers */
+  --border-color: #1f2937;
+  --border-subtle: #2d3748;
+  --border-focus: #3b82f6;
+
+  /* Typography Colors */
+  --text-main: #f3f4f6;
+  --text-muted: #9ca3af;
+  --text-dark: #0f172a;
+  
+  /* Primary Accent - Muted Tech Blue */
+  --accent-primary: #3b82f6;
+  --accent-primary-hover: #2563eb;
+  --accent-glow: rgba(59, 130, 246, 0.25);
+  
+  /* DX Cabinet Glow Accent */
+  --dx-accent: #06b6d4;
+  --export-accent: #ec4899;
+
+  /* Difficulty Badge Colors (Muted Minimalist Arcade Tiers) */
+  --badge-basic-bg: rgba(34, 197, 94, 0.15);
+  --badge-basic-color: #4ade80;
+  --badge-basic-border: rgba(34, 197, 94, 0.3);
+
+  --badge-adv-bg: rgba(245, 158, 11, 0.15);
+  --badge-adv-color: #fbbf24;
+  --badge-adv-border: rgba(245, 158, 11, 0.3);
+
+  --badge-exp-bg: rgba(239, 68, 68, 0.15);
+  --badge-exp-color: #f87171;
+  --badge-exp-border: rgba(239, 68, 68, 0.3);
+
+  --badge-mas-bg: rgba(168, 85, 247, 0.15);
+  --badge-mas-color: #c084fc;
+  --badge-mas-border: rgba(168, 85, 247, 0.3);
+
+  --badge-remas-bg: rgba(236, 72, 153, 0.15);
+  --badge-remas-color: #f472b6;
+  --badge-remas-border: rgba(236, 72, 153, 0.3);
+
+  --badge-utage-bg: rgba(244, 63, 94, 0.18);
+  --badge-utage-color: #fb7185;
+  --badge-utage-border: rgba(244, 63, 94, 0.35);
+}
+
+/* --------------------------------------------------------------------------
+   Global Resets & Baseline
+   -------------------------------------------------------------------------- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button, input, select {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-body);
+}
+::-webkit-scrollbar-thumb {
+  background: #1f2937;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #374151;
+}
+
+/* --------------------------------------------------------------------------
+   App Layout
+   -------------------------------------------------------------------------- */
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main {
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 28px 28px 120px; /* 120px bottom clearance for floating audio/export docks */
+  flex-grow: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Header Navigation Bar
+   -------------------------------------------------------------------------- */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: var(--bg-header);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-color);
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-icon {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-pom-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.brand-title {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.2;
+  display: flex;
+  align-items: center;
+}
+
+.brand-mai {
+  color: var(--text-main);
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}
+
+.brand-accent-i {
+  color: #38bdf8;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}
+
+.brand-ndex {
+  color: var(--text-main);
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}
+
+.brand-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* Search Controls */
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-grow: 1;
+  max-width: 520px;
+}
+
+.search-bar {
+  position: relative;
+  width: 100%;
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  background-color: rgba(17, 24, 39, 0.8);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 9px 14px 9px 40px;
+  color: var(--text-main);
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  background-color: var(--bg-surface);
+}
+
+.search-input::placeholder {
+  color: #6b7280;
+}
+
+/* View Toggle Tabs */
+.view-toggle {
+  display: flex;
+  background-color: rgba(17, 24, 39, 0.8);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.view-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.view-btn:hover {
+  color: var(--text-main);
+}
+
+.view-btn.active {
+  background-color: var(--accent-primary);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+/* --------------------------------------------------------------------------
+   Filter Toolbar Section
+   -------------------------------------------------------------------------- */
+.filter-panel {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.select-input {
+  background-color: var(--bg-body);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+  color: var(--text-main);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.select-input:hover {
+  border-color: var(--border-subtle);
+}
+
+.select-input:focus {
+  border-color: var(--accent-primary);
+}
+
+.btn-reset {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-reset:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.filter-right-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.btn-secondary {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: var(--border-subtle);
+}
+
+/* --------------------------------------------------------------------------
+   Song Cards Grid View
+   -------------------------------------------------------------------------- */
+.songs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 20px;
+}
+
+.song-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.song-card:hover {
+  transform: translateY(-3px);
+  border-color: #374151;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.song-card.selected {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary), 0 8px 24px rgba(59, 130, 246, 0.2);
+}
+
+/* Card Selection Checkbox */
+.card-checkbox {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  width: 28px;
+  height: 28px;
+  background: rgba(11, 15, 23, 0.85);
+  backdrop-filter: blur(8px);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.card-checkbox:hover {
+  background: rgba(17, 24, 39, 0.95);
+}
+
+/* Cabinet Tag Pill */
+.cabinet-pill {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.cabinet-pill.dx {
+  background: linear-gradient(135deg, #0284c7, #06b6d4);
+  color: #ffffff;
+}
+
+.cabinet-pill.sd {
+  background: rgba(255, 255, 255, 0.12);
+  color: #d1d5db;
+}
+
+/* Album Cover Image Wrapper */
+.cover-wrapper {
+  height: 160px;
+  width: 100%;
+  position: relative;
+  background-color: #0b0f17;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.cover-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.song-card:hover .cover-image {
+  transform: scale(1.04);
+}
+
+.cover-placeholder {
+  color: #374151;
+}
+
+/* Audio Play Overlay Button */
+.play-btn-overlay {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(11, 15, 23, 0.85);
+  backdrop-filter: blur(8px);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  transition: all 0.2s ease;
+}
+
+.play-btn-overlay:hover {
+  background: var(--accent-primary);
+  transform: scale(1.1);
+}
+
+.play-btn-overlay.active {
+  background: var(--accent-primary);
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.6);
+}
+
+/* Song Info Body */
+.card-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.card-meta {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+}
+
+.card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.card-artist {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 14px;
+}
+
+/* Difficulty Badges */
+.difficulty-list {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  letter-spacing: 0.2px;
+}
+
+.badge-basic {
+  background-color: var(--badge-basic-bg);
+  color: var(--badge-basic-color);
+  border-color: var(--badge-basic-border);
+}
+
+.badge-advanced {
+  background-color: var(--badge-adv-bg);
+  color: var(--badge-adv-color);
+  border-color: var(--badge-adv-border);
+}
+
+.badge-expert {
+  background-color: var(--badge-exp-bg);
+  color: var(--badge-exp-color);
+  border-color: var(--badge-exp-border);
+}
+
+.badge-master {
+  background-color: var(--badge-mas-bg);
+  color: var(--badge-mas-color);
+  border-color: var(--badge-mas-border);
+}
+
+.badge-remaster {
+  background-color: var(--badge-remas-bg);
+  color: var(--badge-remas-color);
+  border-color: var(--badge-remas-border);
+}
+
+.badge-utage {
+  background-color: var(--badge-utage-bg);
+  color: var(--badge-utage-color);
+  border-color: var(--badge-utage-border);
+}
+
+/* --------------------------------------------------------------------------
+   Table View
+   -------------------------------------------------------------------------- */
+.table-container {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow-x: auto;
+}
+
+.song-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+
+.song-table th {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.song-table tr {
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.15s ease;
+}
+
+.song-table tr:last-child {
+  border-bottom: none;
+}
+
+.song-table tr:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.song-table tr.selected {
+  background-color: rgba(59, 130, 246, 0.08);
+}
+
+.song-table td {
+  padding: 12px 16px;
+  vertical-align: middle;
+}
+
+.table-cover {
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: var(--bg-body);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.table-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.table-title {
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.table-artist {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* --------------------------------------------------------------------------
+   Pagination Controls
+   -------------------------------------------------------------------------- */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 32px;
+  position: relative;
+  z-index: 10;
+}
+
+.pagination.top-pagination {
+  margin-top: 0;
+  margin-bottom: 20px;
+  justify-content: space-between;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 8px 16px;
+}
+
+.btn-pagination {
+  padding: 8px 18px;
+  border-radius: 8px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-pagination:hover:not(:disabled) {
+  background-color: var(--bg-surface-hover);
+  border-color: var(--border-subtle);
+}
+
+.btn-pagination:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-text {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.pagination-text strong {
+  color: var(--text-main);
+}
+
+/* --------------------------------------------------------------------------
+   Floating Bottom Audio Dock
+   -------------------------------------------------------------------------- */
+.audio-dock {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  width: calc(100% - 40px);
+  max-width: 760px;
+  background-color: var(--bg-dock);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  animation: slideUp 0.25s ease-out;
+}
+
+.dock-play-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--accent-primary);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  transition: transform 0.15s ease;
+}
+
+.dock-play-btn:hover {
+  transform: scale(1.05);
+}
+
+.dock-info {
+  flex-shrink: 0;
+  max-width: 160px;
+  overflow: hidden;
+}
+
+.dock-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dock-artist {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --------------------------------------------------------------------------
+   Audio Seeker Progress Controls
+   -------------------------------------------------------------------------- */
+.audio-seeker-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-grow: 1;
+  min-width: 140px;
+}
+
+.seeker-time {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 32px;
+  text-align: center;
+}
+
+.seeker-slider {
+  flex-grow: 1;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+  height: 4px;
+}
+
+.volume-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-icon {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  transition: color 0.15s ease;
+}
+
+.btn-icon:hover {
+  color: var(--text-main);
+}
+
+.volume-slider {
+  width: 80px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+   Floating Bottom Export Cart Dock
+   -------------------------------------------------------------------------- */
+.export-dock {
+  position: fixed;
+  bottom: 20px;
+  right: 28px;
+  z-index: 130;
+  background-color: var(--bg-dock);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--accent-primary);
+  border-radius: 16px;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 0 20px rgba(59, 130, 246, 0.25);
+  animation: slideUp 0.25s ease-out;
+}
+
+.export-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.export-count {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.export-subtext {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.btn-export {
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+  transition: all 0.2s ease;
+}
+
+.btn-export:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.5);
+}
+
+.btn-export:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* --------------------------------------------------------------------------
+   Animations & Keyframes
+   -------------------------------------------------------------------------- */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 16px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.loading-state, .empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+/* --------------------------------------------------------------------------
+   Custom Select Dropdowns
+   -------------------------------------------------------------------------- */
+.custom-select-container {
+  position: relative;
+  display: inline-block;
+}
+
+.custom-select-trigger {
+  background-color: var(--bg-body);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
+.custom-select-trigger:hover {
+  border-color: var(--border-subtle);
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.custom-select-trigger.open {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.custom-select-chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.custom-select-trigger.open .custom-select-chevron {
+  transform: rotate(180deg);
+  color: var(--accent-primary);
+}
+
+.custom-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 100%;
+  width: max-content;
+  max-width: 260px;
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 300;
+  background-color: #111827;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.7);
+  animation: selectFadeIn 0.15s ease-out;
+}
+
+.custom-select-menu.drop-up,
+.export-dock .custom-select-menu {
+  top: auto;
+  bottom: calc(100% + 6px);
+  animation: selectFadeUp 0.15s ease-out;
+}
+
+.custom-select-menu.align-right {
+  left: auto;
+  right: 0;
+}
+
+.custom-select-option {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  transition: all 0.15s ease;
+}
+
+.custom-select-option:hover {
+  background-color: var(--bg-surface-hover);
+  color: var(--text-main);
+}
+
+.custom-select-option.selected {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+@keyframes selectFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes selectFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Volume Slider Tooltip Indicator
+   -------------------------------------------------------------------------- */
+.volume-slider-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.volume-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--accent-primary);
+  color: var(--text-main);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 8px rgba(59, 130, 246, 0.3);
+  animation: selectFadeIn 0.15s ease-out;
+  z-index: 10;
+}
+
+.volume-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 4px;
+  border-style: solid;
+  border-color: var(--accent-primary) transparent transparent transparent;
+}
+
+/* --------------------------------------------------------------------------
+   Mobile & Tablet Responsive Design System
+   -------------------------------------------------------------------------- */
+
+/* Tablet & Smaller Screens (< 1024px) */
+@media (max-width: 1024px) {
+  .app-main {
+    padding: 20px 20px 140px;
+  }
+}
+
+/* Mobile & Small Tablets (< 768px) */
+@media (max-width: 768px) {
+  .app-main {
+    padding: 16px 14px 160px;
+  }
+
+  /* Header adjustments */
+  .app-header {
+    padding: 12px 14px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .brand-section {
+    justify-content: flex-start;
+  }
+
+  .header-controls {
+    max-width: 100%;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .search-bar {
+    flex-grow: 1;
+  }
+
+  .view-toggle {
+    flex-shrink: 0;
+  }
+
+  .view-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  /* Filter Panel */
+  .filter-panel {
+    padding: 12px 14px;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .filter-label {
+    font-size: 12px;
+  }
+
+  .custom-select-container {
+    flex-grow: 1;
+    min-width: 0 !important;
+  }
+
+  .custom-select-trigger {
+    width: 100%;
+  }
+
+  .custom-select-menu {
+    max-width: calc(100vw - 32px);
+  }
+
+  .filter-right-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .btn-reset {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Song Grid (2-column layout on mobile) */
+  .songs-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
+
+  .cover-wrapper {
+    height: 130px;
+  }
+
+  .card-body {
+    padding: 10px;
+  }
+
+  .card-meta {
+    font-size: 10px;
+  }
+
+  .card-title {
+    font-size: 13px;
+  }
+
+  .card-artist {
+    font-size: 11px;
+    margin-bottom: 8px;
+  }
+
+  .card-checkbox {
+    width: 32px;
+    height: 32px;
+  }
+
+  .play-btn-overlay {
+    width: 38px;
+    height: 38px;
+  }
+
+  /* Table View Horizontally Scrollable & Column Toggling */
+  .table-container {
+    border-radius: 10px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Floating Bottom Docks (Audio & Batch Export) */
+  .audio-dock {
+    left: 12px;
+    right: 12px;
+    transform: none;
+    width: calc(100% - 24px);
+    bottom: 12px;
+    padding: 10px 12px;
+    gap: 10px;
+    border-radius: 14px;
+  }
+
+  .export-dock {
+    left: 12px;
+    right: 12px;
+    width: calc(100% - 24px);
+    bottom: 12px;
+    padding: 12px 14px;
+    justify-content: space-between;
+    border-radius: 14px;
+  }
+
+  /* When both docks are active on mobile, stack export dock above audio dock */
+  .export-dock.has-audio-dock {
+    bottom: 78px;
+  }
+}
+
+/* Small Phones (< 640px) */
+@media (max-width: 640px) {
+  /* Top Pagination Bar */
+  .pagination.top-pagination {
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .pagination.top-pagination > div {
+    justify-content: space-between;
+  }
+
+  /* Hide non-essential table columns on small phone screens */
+  .song-table th:nth-child(4),
+  .song-table td:nth-child(4),
+  .song-table th:nth-child(5),
+  .song-table td:nth-child(5),
+  .song-table th:nth-child(6),
+  .song-table td:nth-child(6) {
+    display: none;
+  }
+
+  /* Audio Dock on Small Mobile: Hide redundant software volume slider to maximize seeker bar */
+  .audio-dock .volume-controls {
+    display: none;
+  }
+
+  .dock-info {
+    max-width: 100px;
+  }
+
+  .dock-title {
+    font-size: 12px;
+  }
+
+  .dock-artist {
+    font-size: 10px;
+  }
+
+  .seeker-time {
+    font-size: 10px;
+    min-width: 26px;
+  }
+
+  /* Export Dock on Small Mobile */
+  .export-subtext {
+    display: none;
+  }
+
+  .btn-export {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+}
+
+/* Extra Small Mobile Devices (< 380px) */
+@media (max-width: 380px) {
+  .songs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cover-wrapper {
+    height: 160px;
+  }
+}
+

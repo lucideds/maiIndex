@@ -1,0 +1,10 @@
+.git
+.gitignore
+*.zip
+data/
+node_modules
+dist
+frontend/dist
+frontend/node_modules
+backend/dist
+backend/node_modules
