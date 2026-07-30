@@ -18,8 +18,8 @@ RUN npm run build
 FROM node:22-alpine AS runner
 WORKDIR /app
 
-# Install native dependencies required by better-sqlite3 if needed
-RUN apk add --no-cache sqlite-dev
+# Install native dependencies required by better-sqlite3 and su-exec for entrypoint stepdown
+RUN apk add --no-cache sqlite-dev su-exec
 
 ENV NODE_ENV=production
 ENV PORT=3001
@@ -32,13 +32,14 @@ RUN npm ci --omit=dev
 COPY --from=backend-builder /app/backend/dist ./dist
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
-RUN mkdir -p /data/cache /data/db /app && chown -R node:node /data /app
-
-USER node
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 3001
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "dist/server.js"]
+

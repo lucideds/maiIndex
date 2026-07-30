@@ -867,7 +867,7 @@ export default function App() {
               </>
             ) : (
               <>
-                <Download size={16} /> Export ZIP
+                <Download size={16} /> Export {exportFormat === 'astrodx' ? 'ADX' : exportFormat === 'raw' ? 'RAW' : 'ZIP'}
               </>
             )}
           </button>
