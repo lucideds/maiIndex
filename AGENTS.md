@@ -77,6 +77,11 @@ mai-songs/
   - Floating bottom audio dock (`.audio-dock`) with backdrop blur.
   - Interactive scrubbable song seeker slider (`.seeker-slider`) with real-time timestamp display (`currentTime` / `duration`).
   - Smooth, non-snapping volume control (`step="0.001"`) with active percentage tooltip badge (automatically hidden on mobile <640px to prioritize the seeker bar).
+- **Floating Export Dock & Real-time Progress Bar (`.export-dock`, `.export-progress-panel`)**:
+  - Floating bottom-right cart dock for format selection and batch download execution.
+  - Transforms into an interactive real-time progress panel during active exports, driven by Server-Sent Events (SSE) and `ReadableStream` chunk byte tracking.
+  - Displays glowing percentage fill, song count (`14 / 50 songs packaged`), active song title, and streamed volume (`15.4 MB streamed`).
+  - Displays a green completion badge (`Export Complete!`) for 2.5 seconds upon completion before clearing selection.
 - **Mobile & Tablet Responsiveness**:
   - Fluid 2-column song card grid on mobile viewports (`minmax(150px, 1fr)`).
   - Floating docks stack vertically on mobile (<768px): `.export-dock.has-audio-dock` stacks at `bottom: 78px` above `.audio-dock` to prevent control overlap.
@@ -122,8 +127,10 @@ mai-songs/
 
 ### Export & Conversion API (`/api/export`)
 - `POST /api/export`: Streams zip archive of selected songs converted on-the-fly.
-  - Request Body: `{ songIds: string[], format: 'astrodx' | 'majdata' | 'raw' }`
+  - Request Body: `{ songIds: string[], format: 'astrodx' | 'majdata' | 'raw', exportId?: string }`
   - Response: Streams `.adx` or `.zip` file on-the-fly without temporary disk storage.
+- `GET /api/export/progress/:exportId`: Real-time Server-Sent Events (SSE) or JSON progress stream for active exports.
+  - Response: `{ exportId, total, processed, currentSong, percent, status: 'processing' | 'completed' | 'error' }`
 
 ---
 

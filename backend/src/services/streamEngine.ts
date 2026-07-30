@@ -38,7 +38,8 @@ export async function streamBatchExport(
   songIds: (string | number)[],
   format: 'astrodx' | 'majdata' | 'raw',
   res: Response,
-  dataDir: string
+  dataDir: string,
+  onProgress?: (currentSongTitle: string, processedCount: number, totalSongs: number) => void
 ) {
   if (songIds.length === 0) {
     res.status(400).json({ error: 'No song IDs provided for export.' });
@@ -53,6 +54,11 @@ export async function streamBatchExport(
   if (songs.length === 0) {
     res.status(404).json({ error: 'No matching songs found in database.' });
     return;
+  }
+
+  const totalSongs = songs.length;
+  if (onProgress) {
+    onProgress(songs[0].title, 0, totalSongs);
   }
 
   // Set response headers for download
@@ -86,6 +92,8 @@ export async function streamBatchExport(
     songsByZip.get(song.zip_file)!.push(song);
   }
 
+  const processedFolderSet = new Set<string>();
+
   for (const [zipName, zipSongs] of songsByZip.entries()) {
     const zipPath = findZipFile(zipName, dataDir);
     if (!zipPath) {
@@ -93,7 +101,20 @@ export async function streamBatchExport(
       continue;
     }
 
-    await processZipForSongs(zipPath, zipSongs, format, archive, isSingleSong);
+    await processZipForSongs(
+      zipPath,
+      zipSongs,
+      format,
+      archive,
+      isSingleSong,
+      totalSongs,
+      processedFolderSet,
+      onProgress
+    );
+  }
+
+  if (onProgress) {
+    onProgress('Finalizing archive package...', totalSongs, totalSongs);
   }
 
   await archive.finalize();
@@ -104,7 +125,10 @@ function processZipForSongs(
   songs: SongRecord[],
   format: 'astrodx' | 'majdata' | 'raw',
   archive: archiver.Archiver,
-  isSingleSong: boolean
+  isSingleSong: boolean,
+  totalSongs: number,
+  processedFolderSet: Set<string>,
+  onProgress?: (currentSongTitle: string, processedCount: number, totalSongs: number) => void
 ): Promise<void> {
   return new Promise((resolve) => {
     yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) => {
@@ -113,12 +137,12 @@ function processZipForSongs(
         return resolve();
       }
 
-      // Map folder_path -> target folder name in output zip
-      const folderMap = new Map<string, string>();
+      // Map folder_path -> { targetFolderName, title }
+      const folderMap = new Map<string, { targetFolderName: string; title: string }>();
       for (const song of songs) {
         const cleanTitle = sanitizeFilename(song.title) || song.shortid;
         const targetFolderName = `${song.shortid}_${cleanTitle}`;
-        folderMap.set(song.folder_path, targetFolderName);
+        folderMap.set(song.folder_path, { targetFolderName, title: song.title });
       }
 
       zipfile.readEntry();
@@ -147,7 +171,16 @@ function processZipForSongs(
           return;
         }
 
-        const targetFolderName = folderMap.get(matchedSongFolder)!;
+        const songMeta = folderMap.get(matchedSongFolder)!;
+
+        if (!processedFolderSet.has(matchedSongFolder)) {
+          processedFolderSet.add(matchedSongFolder);
+          if (onProgress) {
+            onProgress(songMeta.title, processedFolderSet.size, totalSongs);
+          }
+        }
+
+        const targetFolderName = songMeta.targetFolderName;
 
         // Determine destination path inside output archive:
         let destEntryPath: string;

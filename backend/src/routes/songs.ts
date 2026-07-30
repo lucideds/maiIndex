@@ -191,9 +191,66 @@ export function createSongRouter(dataDir: string) {
     streamEntryFromZip(zipPath, targetEntry, res, song.audio_file.endsWith('.ogg') ? 'audio/ogg' : 'audio/mpeg');
   });
 
+  interface ExportProgressState {
+    exportId: string;
+    total: number;
+    processed: number;
+    currentSong: string;
+    percent: number;
+    status: 'processing' | 'completed' | 'error';
+    error?: string;
+  }
+
+  const exportProgressMap = new Map<string, ExportProgressState>();
+
+  // Stream progress SSE & JSON endpoint
+  router.get('/export/progress/:exportId', (req: Request, res: Response) => {
+    const { exportId } = req.params;
+    const isEventStream = req.headers.accept?.includes('text/event-stream');
+
+    if (isEventStream) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      const sendUpdate = () => {
+        const state = exportProgressMap.get(exportId) || {
+          exportId,
+          total: 0,
+          processed: 0,
+          currentSong: 'Preparing export...',
+          percent: 0,
+          status: 'processing'
+        };
+        res.write(`data: ${JSON.stringify(state)}\n\n`);
+        if (state.status === 'completed' || state.status === 'error') {
+          clearInterval(intervalId);
+          res.end();
+        }
+      };
+
+      sendUpdate();
+      const intervalId = setInterval(sendUpdate, 200);
+
+      req.on('close', () => {
+        clearInterval(intervalId);
+      });
+    } else {
+      const state = exportProgressMap.get(exportId) || {
+        exportId,
+        total: 0,
+        processed: 0,
+        currentSong: 'Preparing export...',
+        percent: 0,
+        status: 'processing'
+      };
+      res.json(state);
+    }
+  });
+
   // Batch Export Endpoint
   router.post('/export', async (req: Request, res: Response) => {
-    const { songIds, format } = req.body;
+    const { songIds, format, exportId } = req.body;
 
     if (!Array.isArray(songIds) || songIds.length === 0) {
       res.status(400).json({ error: 'Please select at least one song to export.' });
@@ -215,12 +272,65 @@ export function createSongRouter(dataDir: string) {
     }
 
     const validFormat = ['astrodx', 'majdata', 'raw'].includes(format) ? format : 'astrodx';
+    const currentExportId = exportId || `exp_${Date.now()}`;
+
+    // Initialize export progress
+    exportProgressMap.set(currentExportId, {
+      exportId: currentExportId,
+      total: songIds.length,
+      processed: 0,
+      currentSong: 'Starting export stream...',
+      percent: 0,
+      status: 'processing'
+    });
 
     activeExports++;
     try {
-      await streamBatchExport(songIds, validFormat as any, res, dataDir);
+      await streamBatchExport(
+        songIds,
+        validFormat as any,
+        res,
+        dataDir,
+        (currentSongTitle, processedCount, totalSongs) => {
+          const percent = Math.min(100, Math.round((processedCount / totalSongs) * 100));
+          exportProgressMap.set(currentExportId, {
+            exportId: currentExportId,
+            total: totalSongs,
+            processed: processedCount,
+            currentSong: currentSongTitle,
+            percent,
+            status: processedCount >= totalSongs ? 'completed' : 'processing'
+          });
+        }
+      );
+
+      // Final mark completed
+      const finalState = exportProgressMap.get(currentExportId);
+      if (finalState) {
+        exportProgressMap.set(currentExportId, {
+          ...finalState,
+          processed: finalState.total,
+          percent: 100,
+          status: 'completed'
+        });
+      }
+    } catch (e: any) {
+      exportProgressMap.set(currentExportId, {
+        exportId: currentExportId,
+        total: songIds.length,
+        processed: 0,
+        currentSong: 'Failed',
+        percent: 0,
+        status: 'error',
+        error: e.message || 'Export error'
+      });
+      throw e;
     } finally {
       activeExports--;
+      // Auto cleanup export session after 2 minutes
+      setTimeout(() => {
+        exportProgressMap.delete(currentExportId);
+      }, 120000);
     }
   });
 
