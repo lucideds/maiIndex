@@ -10,7 +10,7 @@ It indexes local `.zip` chart archives across 1,800+ songs, provides fast title/
 
 - **Backend**: Node.js (v22), Express.js, TypeScript (`tsx`), SQLite3 (`better-sqlite3`), `archiver`, `yauzl`.
 - **Frontend**: React 19, Vite (v6), TypeScript (v5), `lucide-react`, Custom CSS Design System (`Inter` typography).
-- **Deployment**: Docker, Docker Compose.
+- **Deployment**: Docker, Docker Compose, prebuilt images published to the GitHub Container Registry (`ghcr.io/lucideds/maiindex`).
 
 ---
 
@@ -25,11 +25,82 @@ It indexes local `.zip` chart archives across 1,800+ songs, provides fast title/
 
 ### Option A: Docker Deployment (Recommended)
 
+Prebuilt images are published to the GitHub Container Registry on every push to `main` and on `v*` tags. Pick either variant below — both expose the same application.
+
+#### A1. Pull the published image
+
+The package is private (the repository is), so authenticate first — once the package is switched to public in its GitHub package settings, the login step can be skipped. Create a classic PAT with the `read:packages` scope and log in:
+
+```bash
+echo "$GHCR_PAT" | docker login ghcr.io -u <github-username> --password-stdin
+```
+
+Then pull:
+
+```bash
+docker pull ghcr.io/lucideds/maiindex:latest
+```
+
+Then run it with your chart archives and SQLite data mounted:
+
+```bash
+docker run -d \
+  --name maiindex \
+  --restart unless-stopped \
+  -p 3001:3001 \
+  -e ENABLE_GITHUB_SYNC=false \
+  -e MAX_BATCH_SONGS=100 \
+  -e MAX_CONCURRENT_EXPORTS=5 \
+  -v "$PWD/archives:/data/cache_local:ro" \
+  -v "$PWD/data/cache:/data/cache" \
+  -v "$PWD/data/db:/data/db" \
+  ghcr.io/lucideds/maiindex:latest
+```
+
+Volume roles (same paths the container expects when built from source):
+
+| Container path       | Purpose                                                                        |
+| :------------------- | :----------------------------------------------------------------------------- |
+| `/data/cache_local`  | Read-only mount of your chart `.zip` archives (`mdbp.zip`, `mf.zip`, …).        |
+| `/data/cache`        | Writable cache for assets downloaded by the optional GitHub sync.               |
+| `/data/db`           | Writable directory holding the generated `maimai.db` SQLite index.              |
+
+Because the image ships a `HEALTHCHECK` on `/health`, `docker ps` reports the container's real readiness — wait for `healthy` before loading the UI.
+
+The same image works from Compose without building anything — save this as `docker-compose.yml` and run `docker compose up -d`:
+
+```yaml
+services:
+  maiindex:
+    image: ghcr.io/lucideds/maiindex:latest
+    container_name: maiindex
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - DATA_CACHE_DIR=/data/cache
+      - DATA_DB_DIR=/data/db
+      - ENABLE_GITHUB_SYNC=false
+      - MAX_BATCH_SONGS=100
+      - MAX_CONCURRENT_EXPORTS=5
+    volumes:
+      - ./data/cache:/data/cache
+      - ./data/db:/data/db
+      - ./:/data/cache_local:ro
+```
+
+Use `docker compose pull && docker compose up -d` to upgrade an existing deployment to the newest `latest`.
+
+Available tags: `latest` (default branch), `main`, release tags from `v*` git tags with the `v` stripped (e.g. `1.4.0` and `1.4`), and `sha-<short-commit>` for pinning an exact commit.
+
+#### A2. Build from source
+
 1. **Clone Repository**:
 
    ```bash
-   git clone https://github.com/your-username/mai-songs.git
-   cd mai-songs
+   git clone https://github.com/lucideds/maiIndex.git
+   cd maiIndex
    ```
 
 2. **Mount Chart Archives**:
@@ -41,9 +112,10 @@ It indexes local `.zip` chart archives across 1,800+ songs, provides fast title/
    docker compose up --build -d
    ```
 
-4. **Access Application**:
-   - Web App UI: **`http://localhost:3001`**
-   - Healthcheck: **`http://localhost:3001/health`**
+#### A3. Access Application
+
+- Web App UI: **`http://localhost:3001`**
+- Healthcheck: **`http://localhost:3001/health`**
 
 ---
 
@@ -112,8 +184,11 @@ mai-songs/
 ├── data/
 │   ├── cache/             # Downloaded / local asset cache
 │   └── db/                # maimai.db SQLite database
+├── .github/
+│   └── workflows/
+│       └── docker-publish.yml  # Builds and publishes the GHCR image (main, v* tags)
 ├── Dockerfile             # Multi-stage production container build
-├── docker-compose.yml     # Docker Compose orchestration
+├── docker-compose.yml     # Docker Compose orchestration (local build variant)
 └── README.md
 ```
 
