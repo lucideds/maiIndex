@@ -2,8 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, Music, Download, LayoutGrid, List, Play, Pause, 
   CheckSquare, Square, Filter, RefreshCw, X, ListChecks,
-  Volume2, VolumeX, ArrowUpDown, ChevronDown, Check
+  Volume2, VolumeX, ArrowUpDown, ChevronDown, Check,
+  Shuffle, SkipForward, RotateCcw, Trash2
 } from 'lucide-react';
+import {
+  activeRanges, availableLevels, buildPool, chartsFor, drawSong, formatLevel,
+  loadState, poolOptions, saveState,
+  type PickSong, type PickState, type Range,
+} from './picker';
 
 interface Song {
   id: number;
@@ -147,6 +153,13 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
 
+  // Pick mode - one card at a time, drawn from the whole catalog
+  const [pickMode, setPickMode] = useState(false);
+  const [pick, setPick] = useState<PickState>(loadState);
+  const [catalog, setCatalog] = useState<PickSong[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [card, setCard] = useState<PickSong | null>(null);
+
   const formatTime = (secs: number) => {
     if (!secs || isNaN(secs)) return '0:00';
     const m = Math.floor(secs / 60);
@@ -176,6 +189,27 @@ export default function App() {
       }
     };
   }, [audioElement]);
+
+  // Pick state is local-only, but play counts are meant to outlive the tab
+  useEffect(() => {
+    saveState(pick);
+  }, [pick]);
+
+  // The whole catalog is needed to draw from - fetch it the first time pick mode opens
+  useEffect(() => {
+    if (pickMode && catalog.length === 0 && !catalogLoading) fetchCatalog();
+  }, [pickMode]);
+
+  // Draw the first card once the catalog has landed
+  useEffect(() => {
+    if (pickMode && catalog.length > 0 && !card) {
+      const next = drawSong(catalog, poolOptions(pick));
+      if (next) {
+        setPick(prev => ({ ...prev, lastArtist: next.artist }));
+        setCard(next);
+      }
+    }
+  }, [pickMode, catalog, card]);
 
   const fetchSongs = async () => {
     setLoading(true);
@@ -214,6 +248,63 @@ export default function App() {
     } catch (e) {
       console.error('Failed to load filter metadata:', e);
     }
+  };
+
+  const fetchCatalog = async () => {
+    setCatalogLoading(true);
+    try {
+      const pages = (total: number) => Math.ceil(total / 1000);
+      const first = await (await fetch('/api/songs?limit=1000&page=1&sort=id_asc')).json();
+      const extra = pages(first.total || 0);
+      const rest = extra > 1
+        ? await Promise.all(
+            Array.from({ length: extra - 1 }, (_, i) =>
+              fetch(`/api/songs?limit=1000&page=${i + 2}&sort=id_asc`).then(r => r.json())
+            )
+          )
+        : [];
+      setCatalog([...(first.songs || []), ...rest.flatMap(d => d.songs || [])]);
+    } catch (e) {
+      console.error('Failed to fetch catalog for pick mode:', e);
+    } finally {
+      setCatalogLoading(false);
+    }
+  };
+
+  // Every mutation of the pick state redraws: the new state decides the pool, and the
+  // card on screen is excluded so a reroll is never a no-op.
+  const applyPick = (state: PickState, exclude?: string) => {
+    const next = drawSong(catalog, poolOptions(state, exclude));
+    setPick(next ? { ...state, lastArtist: next.artist } : state);
+    setCard(next);
+  };
+
+  const handleReroll = () => applyPick(pick, card?.shortid);
+
+  const handleSkip = () => {
+    if (card) applyPick({ ...pick, skipped: { ...pick.skipped, [card.shortid]: true } });
+  };
+
+  const handlePlayed = () => {
+    if (!card) return;
+    applyPick({
+      ...pick,
+      played: { ...pick.played, [card.shortid]: (pick.played[card.shortid] || 0) + 1 },
+      sessionPlayed: { ...pick.sessionPlayed, [card.shortid]: true },
+    });
+  };
+
+  const handleResetSession = () => applyPick({ ...pick, sessionPlayed: {}, skipped: {} });
+
+  const handleClearPlayed = () => applyPick({ ...pick, played: {} });
+
+  const setRange = (index: 0 | 1, bound: 0 | 1, value: number) => {
+    const ranges = pick.ranges.map(r => [...r]) as [Range, Range];
+    ranges[index][bound] = value;
+    if (ranges[index][0] > ranges[index][1]) {
+      ranges[index] = ranges[index].sort((a, b) => a - b) as Range;
+    }
+    applyPick({ ...pick, ranges });
   };
 
   const toggleSelectSong = (shortid: string) => {
@@ -365,6 +456,12 @@ export default function App() {
 
   const isFilterActive = version || genre || cabinet || search || sort !== 'id_asc';
 
+  // Pick-mode derived values
+  const pickCharts = card ? chartsFor(card, activeRanges(pick)) : null;
+  const pickPoolSize = catalog.length > 0 ? buildPool(catalog, poolOptions(pick, card?.shortid)).length : 0;
+  const levelOptions = availableLevels(catalog).map(level => ({ value: String(level), label: formatLevel(level) }));
+  const playedThisSession = Object.keys(pick.sessionPlayed).length;
+
   // Format dropdown options
   const versionOptions = [
     { value: '', label: 'All Versions' },
@@ -508,6 +605,13 @@ export default function App() {
 
           {/* Select Page Actions */}
           <div className="filter-right-actions">
+            <button
+              className={`btn-secondary ${pickMode ? 'active' : ''}`}
+              onClick={() => setPickMode(m => !m)}
+              title="Pick one chart at a time instead of browsing"
+            >
+              <Shuffle size={14} /> Pick
+            </button>
             <button 
               className="btn-secondary"
               onClick={selectAllCurrentPage}
@@ -517,8 +621,129 @@ export default function App() {
           </div>
         </div>
 
-        {/* Songs Layout (Grid or Table View) */}
-        {loading ? (
+        {/* Pick Card, or the Songs Layout (Grid or Table View) */}
+        {pickMode ? (
+          <div className="pick-panel">
+            <div className="pick-controls">
+              <div className="pick-range">
+                <span className="pick-range-label">You</span>
+                <CustomDropdown options={levelOptions} value={String(pick.ranges[0][0])} onChange={(val) => setRange(0, 0, Number(val))} minWidth="84px" />
+                <span className="pick-range-sep">–</span>
+                <CustomDropdown options={levelOptions} value={String(pick.ranges[0][1])} onChange={(val) => setRange(0, 1, Number(val))} minWidth="84px" />
+              </div>
+
+              {pick.twoPlayer && (
+                <div className="pick-range">
+                  <span className="pick-range-label">Them</span>
+                  <CustomDropdown options={levelOptions} value={String(pick.ranges[1][0])} onChange={(val) => setRange(1, 0, Number(val))} minWidth="84px" />
+                  <span className="pick-range-sep">–</span>
+                  <CustomDropdown options={levelOptions} value={String(pick.ranges[1][1])} onChange={(val) => setRange(1, 1, Number(val))} minWidth="84px" />
+                </div>
+              )}
+
+              <button
+                className={`btn-secondary ${pick.twoPlayer ? 'active' : ''}`}
+                onClick={() => applyPick({ ...pick, twoPlayer: !pick.twoPlayer })}
+                title="Pair up with a second player - the song has to work for both ranges"
+              >
+                <Shuffle size={14} /> 2P
+              </button>
+
+              <label className="pick-checkbox">
+                <input
+                  type="checkbox"
+                  checked={pick.excludeUtage}
+                  onChange={(e) => applyPick({ ...pick, excludeUtage: e.target.checked })}
+                />
+                Exclude [宴] Utage
+              </label>
+
+              <span className="pick-pool">
+                {catalogLoading
+                  ? 'Loading catalog...'
+                  : `${pickPoolSize.toLocaleString()} in pool · ${playedThisSession} played this session`}
+              </span>
+            </div>
+
+            {catalogLoading ? (
+              <div className="loading-state">
+                <RefreshCw size={36} className="spinner" style={{ margin: '0 auto 16px', display: 'block', color: 'var(--accent-primary)' }} />
+                Loading the catalog...
+              </div>
+            ) : card && pickCharts ? (
+              <div className="pick-card">
+                <div className="pick-cover">
+                  {getCabinetType(card) && (
+                    <span className={`cabinet-pill ${getCabinetType(card)!.toLowerCase()}`}>
+                      {getCabinetType(card)}
+                    </span>
+                  )}
+                  {card.cover_file ? (
+                    <img
+                      src={`/api/songs/${card.id}/cover`}
+                      alt={card.title}
+                      className="cover-image"
+                      onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                    />
+                  ) : (
+                    <Music size={42} className="cover-placeholder" />
+                  )}
+                </div>
+
+                <div className="pick-body">
+                  <div className="card-meta">
+                    {formatVersionName(card.version)} • {card.genre || 'maimai'}
+                    {pick.played[card.shortid] ? ` • played ${pick.played[card.shortid]}×` : ''}
+                  </div>
+                  <h2 className="pick-title" title={card.title}>{formatSongTitle(card.title)}</h2>
+                  <p className="card-artist">{card.artist}</p>
+
+                  {/* One chart per active range - this is the line you read out at the cabinet */}
+                  <div className="pick-charts">
+                    {pickCharts.map((chart, idx) => (
+                      <div key={idx} className="pick-chart">
+                        <span className="pick-who">{idx === 0 ? 'You' : 'Them'}</span>
+                        <span className={`badge ${chart.slot.badge}`}>{chart.slot.label} {chart.display}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pick-actions">
+                    <button className="btn-export" onClick={handleReroll}>
+                      <RefreshCw size={16} /> Reroll
+                    </button>
+                    <button className="btn-secondary" onClick={handleSkip}>
+                      <SkipForward size={14} /> Skip
+                    </button>
+                    <button className="btn-secondary" onClick={handlePlayed}>
+                      <Check size={14} /> Played
+                    </button>
+                    {card.audio_file && (
+                      <button className="btn-icon" onClick={() => handleAudioPlay(card)} title="Preview audio">
+                        {activeAudioSong?.id === card.id && isPlaying
+                          ? <Pause size={16} color="var(--accent-primary)" />
+                          : <Play size={16} />}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="pick-footer">
+                    <button className="btn-reset" onClick={handleResetSession}>
+                      <RotateCcw size={13} /> Reset session
+                    </button>
+                    <button className="btn-reset" onClick={handleClearPlayed}>
+                      <Trash2 size={13} /> Clear played history
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="empty-state">
+                Nothing left in that range — widen it, reset the session, or clear played history.
+              </div>
+            )}
+          </div>
+        ) : loading ? (
           <div className="loading-state">
             <RefreshCw size={36} className="spinner" style={{ margin: '0 auto 16px', display: 'block', color: 'var(--accent-primary)' }} />
             Loading chart collection...
@@ -729,7 +954,8 @@ export default function App() {
       </>
     )}
 
-        {/* Pagination Bar */}
+        {/* Pagination Bar - browsing only */}
+        {!pickMode && (
         <div className="pagination">
           <button 
             className="btn-pagination"
@@ -749,6 +975,7 @@ export default function App() {
             Next
           </button>
         </div>
+        )}
       </main>
 
       {/* Floating Audio Dock */}
