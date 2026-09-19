@@ -24,13 +24,16 @@
   --text-main: #f2ede9;
   --text-muted: #a3968f;
 
-  /* Accent - the mascot's butter yellow, used for actions and selection only */
-  --accent-primary: #f0e9a3;
-  --accent-primary-hover: #f8f4c4;
+  /* Accent - warm cream, actions and selection only. Deliberately hue-free: every
+     saturated warm hue in this UI belongs to a difficulty tier (ADV owns amber, BAS
+     green, EXP red, MAS purple, ReM/Utage the pinks), so a yellow accent reads as
+     another badge rather than as chrome. */
+  --accent-primary: #e7dcc4;
+  --accent-primary-hover: #f3ecdd;
   --accent-ink: #1c1512;
-  --accent-tint: rgba(240, 233, 163, 0.12);
-  --accent-border: rgba(240, 233, 163, 0.4);
-  --accent-ring: rgba(240, 233, 163, 0.22);
+  --accent-tint: rgba(231, 220, 196, 0.12);
+  --accent-border: rgba(231, 220, 196, 0.4);
+  --accent-ring: rgba(231, 220, 196, 0.22);
 
   /* Alert - the mascot's oxblood, lifted for legibility on dark surfaces */
   --alert: #e08272;

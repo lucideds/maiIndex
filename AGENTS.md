@@ -67,9 +67,9 @@ mai-songs/
   3. Workspace root fallback (`process.cwd()`)
 
 ### 2. Frontend Design System (`index.css` & `App.tsx`)
-- **Theme — "Cabinet Dark"**: Warm near-black surfaces with a single butter-yellow accent. Palette is sampled from the project's own mascot art (`frontend/public/pom.png`: butter `#f0f0a8`, oxblood `#781818`, plum `#481830`, warm grey `#483030`), so it is a sourced identity rather than a framework default.
+- **Theme — "Cabinet Dark"**: Warm near-black surfaces with a single warm-cream accent. Palette is sampled from the project's own mascot art (`frontend/public/pom.png`: butter `#f0f0a8`, oxblood `#781818`, plum `#481830`, warm grey `#483030`), so it is a sourced identity rather than a framework default.
   - Surfaces: `--bg-body: #0e0b0d`, `--bg-card: #171316`, `--border-color: #2b2326`.
-  - Accent: `--accent-primary: #f0e9a3` (actions, selection, focus) with `--accent-ink: #1c1512` for text on accent fills.
+  - Accent: `--accent-primary: #e7dcc4` (warm cream - actions, selection, focus) with `--accent-ink: #1c1512` for text on accent fills. The accent is kept hue-free on purpose: saturated warm hues belong to the difficulty tiers, so a yellow accent reads as another badge.
   - Alert: `--alert: #e08272` (clear filters, destructive actions).
   - UI chrome stays desaturated **on purpose**: the difficulty tiers own every saturated hue, and the accent is reserved for interactive state.
 - **Anti-slop rules (MUST)**:
