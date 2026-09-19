@@ -670,7 +670,7 @@ export default function App() {
                 Loading the catalog...
               </div>
             ) : card && pickCharts ? (
-              <div className="pick-card">
+              <div className="pick-card" key={card.shortid}>
                 <div className="pick-cover">
                   {getCabinetType(card) && (
                     <span className={`cabinet-pill ${getCabinetType(card)!.toLowerCase()}`}>
