@@ -159,7 +159,8 @@ export interface PickState {
 }
 
 export const defaultState = (): PickState => ({
-  ranges: [[11, 12], [13, 14]],
+  // Both players default to the same bracket - widen the second range for a mixed pair.
+  ranges: [[11, 12], [11, 12]],
   twoPlayer: false,
   excludeUtage: true,
   played: {},
@@ -167,7 +168,8 @@ export const defaultState = (): PickState => ({
   skipped: {},
 });
 
-const STORAGE_KEY = 'maiindex.pick.v1';
+// v2: the second range default changed, so stored v1 state would hide it.
+const STORAGE_KEY = 'maiindex.pick.v2';
 
 export const loadState = (): PickState => {
   try {

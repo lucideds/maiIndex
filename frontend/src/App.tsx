@@ -195,21 +195,18 @@ export default function App() {
     saveState(pick);
   }, [pick]);
 
-  // The whole catalog is needed to draw from - fetch it the first time pick mode opens
+  // Pick mode draws from whatever the filters select, so changing a filter refetches
   useEffect(() => {
-    if (pickMode && catalog.length === 0 && !catalogLoading) fetchCatalog();
-  }, [pickMode]);
+    if (pickMode) fetchCatalog();
+  }, [pickMode, search, version, genre, cabinet]);
 
-  // Draw the first card once the catalog has landed
+  // A new catalog - first load or a filter change - gets a fresh card
   useEffect(() => {
-    if (pickMode && catalog.length > 0 && !card) {
-      const next = drawSong(catalog, poolOptions(pick));
-      if (next) {
-        setPick(prev => ({ ...prev, lastArtist: next.artist }));
-        setCard(next);
-      }
-    }
-  }, [pickMode, catalog, card]);
+    if (!pickMode || catalog.length === 0) return;
+    const next = drawSong(catalog, poolOptions(pick));
+    setPick(prev => (next ? { ...prev, lastArtist: next.artist } : prev));
+    setCard(next);
+  }, [catalog]);
 
   const fetchSongs = async () => {
     setLoading(true);
@@ -253,13 +250,15 @@ export default function App() {
   const fetchCatalog = async () => {
     setCatalogLoading(true);
     try {
-      const pages = (total: number) => Math.ceil(total / 1000);
-      const first = await (await fetch('/api/songs?limit=1000&page=1&sort=id_asc')).json();
-      const extra = pages(first.total || 0);
+      // Same query the browse view uses: the picker draws from whatever the filters select.
+      const query = (page: number) =>
+        new URLSearchParams({ page: String(page), limit: '1000', search, version, genre, cabinet, sort: 'id_asc' }).toString();
+      const first = await (await fetch(`/api/songs?${query(1)}`)).json();
+      const extra = Math.ceil((first.total || 0) / 1000);
       const rest = extra > 1
         ? await Promise.all(
             Array.from({ length: extra - 1 }, (_, i) =>
-              fetch(`/api/songs?limit=1000&page=${i + 2}&sort=id_asc`).then(r => r.json())
+              fetch(`/api/songs?${query(i + 2)}`).then(r => r.json())
             )
           )
         : [];
@@ -739,7 +738,7 @@ export default function App() {
               </div>
             ) : (
               <div className="empty-state">
-                Nothing left in that range — widen it, reset the session, or clear played history.
+                Nothing left in that range — widen it, clear a filter, reset the session, or clear played history.
               </div>
             )}
           </div>

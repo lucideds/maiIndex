@@ -1907,12 +1907,16 @@ button, input, select {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 .pick-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -1973,6 +1977,7 @@ button, input, select {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 22px;
+  width: 100%;
 }
 
 .pick-cover {
@@ -2045,12 +2050,32 @@ button, input, select {
 }
 
 @media (max-width: 640px) {
+  .pick-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .pick-range {
+    justify-content: center;
+  }
+
+  .pick-checkbox {
+    justify-content: center;
+  }
+
   .pick-card {
     flex-direction: column;
+    align-items: center;
     padding: 16px;
   }
 
   .pick-cover {
+    width: min(240px, 100%);
+  }
+
+  .pick-body {
     width: 100%;
   }
 
@@ -2058,7 +2083,20 @@ button, input, select {
     font-size: 22px;
   }
 
+  .pick-charts {
+    justify-content: center;
+  }
+
+  .pick-actions {
+    justify-content: center;
+  }
+
+  .pick-footer {
+    justify-content: center;
+  }
+
   .pick-pool {
     margin-left: 0;
+    text-align: center;
   }
 }

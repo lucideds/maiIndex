@@ -102,6 +102,11 @@ test('drawSong: deterministic under an injected rng, never repeats, degrades cle
   assert.equal(drawSong(catalog, { ...opts, sessionPlayed: { a: true, b: true, c: true } }), null);
 });
 
+test('defaults: both ranges start at 11-12, so a mixed pair is one edit away', () => {
+  assert.deepEqual(defaultState().ranges, [[11, 12], [11, 12]]);
+  assert.equal(defaultState().excludeUtage, true);
+});
+
 test('availableLevels lists every real level, ascending and unique', () => {
   const levels = availableLevels([
     song({ lv_1: '1.0', lv_4: '12', lv_5: '13+' }),
