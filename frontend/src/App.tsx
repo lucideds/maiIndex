@@ -140,11 +140,12 @@ function RangeSlider({ min, max, value, onChange, onCommit }: RangeSliderProps) 
 
   return (
     <div className="dual-range-container">
-      <div className="dual-range-track-bg" />
-      <div
-        className="dual-range-track-active"
-        style={{ left: `${pct(low)}%`, right: `${100 - pct(high)}%` }}
-      />
+      <div className="dual-range-rail">
+        <div
+          className="dual-range-fill"
+          style={{ left: `${pct(low)}%`, right: `${100 - pct(high)}%` }}
+        />
+      </div>
       <input
         type="range"
         className="dual-range-input"
@@ -684,54 +685,58 @@ export default function App() {
         {pickMode ? (
           <div className="pick-panel">
             <div className="pick-controls">
-              <div className="pick-range">
-                <span className="pick-range-label">You</span>
-                <span className="pick-range-value">{pick.ranges[0][0]}–{pick.ranges[0][1]}</span>
-                <RangeSlider
-                  min={levelMin}
-                  max={levelMax}
-                  value={pick.ranges[0]}
-                  onChange={(value) => previewRange(0, value)}
-                  onCommit={(value) => commitRange(0, value)}
-                />
-              </div>
-
-              {pick.twoPlayer && (
+              <div className="pick-ranges">
                 <div className="pick-range">
-                  <span className="pick-range-label">Them</span>
-                  <span className="pick-range-value">{pick.ranges[1][0]}–{pick.ranges[1][1]}</span>
+                  <span className="pick-range-label">You</span>
                   <RangeSlider
                     min={levelMin}
                     max={levelMax}
-                    value={pick.ranges[1]}
-                    onChange={(value) => previewRange(1, value)}
-                    onCommit={(value) => commitRange(1, value)}
+                    value={pick.ranges[0]}
+                    onChange={(value) => previewRange(0, value)}
+                    onCommit={(value) => commitRange(0, value)}
                   />
+                  <span className="pick-range-value">{pick.ranges[0][0]}–{pick.ranges[0][1]}</span>
                 </div>
-              )}
 
-              <button
-                className={`btn-secondary ${pick.twoPlayer ? 'active' : ''}`}
-                onClick={() => applyPick({ ...pick, twoPlayer: !pick.twoPlayer })}
-                title="Pair up with a second player - the song has to work for both ranges"
-              >
-                <Shuffle size={14} /> 2P
-              </button>
+                {pick.twoPlayer && (
+                  <div className="pick-range">
+                    <span className="pick-range-label">Them</span>
+                    <RangeSlider
+                      min={levelMin}
+                      max={levelMax}
+                      value={pick.ranges[1]}
+                      onChange={(value) => previewRange(1, value)}
+                      onCommit={(value) => commitRange(1, value)}
+                    />
+                    <span className="pick-range-value">{pick.ranges[1][0]}–{pick.ranges[1][1]}</span>
+                  </div>
+                )}
+              </div>
 
-              <label className="pick-checkbox">
-                <input
-                  type="checkbox"
-                  checked={pick.excludeUtage}
-                  onChange={(e) => applyPick({ ...pick, excludeUtage: e.target.checked })}
-                />
-                Exclude [宴] Utage
-              </label>
+              <div className="pick-toggles">
+                <button
+                  className={`btn-secondary ${pick.twoPlayer ? 'active' : ''}`}
+                  onClick={() => applyPick({ ...pick, twoPlayer: !pick.twoPlayer })}
+                  title="Pair up with a second player - the song has to work for both ranges"
+                >
+                  <Shuffle size={14} /> 2P
+                </button>
 
-              <span className="pick-pool">
-                {catalogLoading
-                  ? 'Loading catalog...'
-                  : `${pickPoolSize.toLocaleString()} in pool · ${playedThisSession} played this session`}
-              </span>
+                <label className="pick-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={pick.excludeUtage}
+                    onChange={(e) => applyPick({ ...pick, excludeUtage: e.target.checked })}
+                  />
+                  Exclude [宴] Utage
+                </label>
+
+                <span className="pick-pool">
+                  {catalogLoading
+                    ? 'Loading catalog...'
+                    : `${pickPoolSize.toLocaleString()} in pool · ${playedThisSession} played this session`}
+                </span>
+              </div>
             </div>
 
             {catalogLoading ? (
