@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, Music, Download, LayoutGrid, List, Play, Pause, 
-  CheckSquare, Square, Filter, Disc, RefreshCw, X, Sparkles,
+  CheckSquare, Square, Filter, RefreshCw, X, ListChecks,
   Volume2, VolumeX, ArrowUpDown, ChevronDown, Check
 } from 'lucide-react';
 
@@ -132,21 +132,11 @@ export default function App() {
   const [versions, setVersions] = useState<{ version: string; count: number }[]>([]);
   const [genres, setGenres] = useState<{ genre: string; count: number }[]>([]);
 
-interface ExportProgress {
-  total: number;
-  processed: number;
-  percent: number;
-  currentSong: string;
-  bytesReadMB: string;
-  isComplete: boolean;
-}
-
   // UI state
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [exportFormat, setExportFormat] = useState<'astrodx' | 'majdata' | 'raw'>('astrodx');
+  const [exportFormat, setExportFormat] = useState<'astrodx' | 'majdata' | 'raw' | 'sonolus'>('astrodx');
   const [exporting, setExporting] = useState(false);
-  const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
 
   // Active preview player state
   const [activeAudioSong, setActiveAudioSong] = useState<Song | null>(null);
@@ -329,78 +319,30 @@ interface ExportProgress {
   const handleExport = async () => {
     if (selectedIds.size === 0) return;
     setExporting(true);
-    const exportId = `exp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-
-    setExportProgress({
-      total: selectedIds.size,
-      processed: 0,
-      percent: 0,
-      currentSong: 'Connecting to export stream...',
-      bytesReadMB: '0.0',
-      isComplete: false,
-    });
-
-    let eventSource: EventSource | null = null;
     try {
-      // Connect to SSE progress updates
-      eventSource = new EventSource(`/api/export/progress/${exportId}`);
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          setExportProgress((prev) => ({
-            total: data.total || selectedIds.size,
-            processed: data.processed || 0,
-            percent: data.percent || 0,
-            currentSong: data.currentSong || 'Packaging songs...',
-            bytesReadMB: prev?.bytesReadMB || '0.0',
-            isComplete: data.status === 'completed' || data.percent >= 100,
-          }));
-        } catch {}
-      };
-
       const res = await fetch('/api/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           songIds: Array.from(selectedIds),
           format: exportFormat,
-          exportId,
         }),
       });
 
       if (!res.ok) {
         const err = await res.json();
         alert(`Export Error: ${err.error}`);
-        setExportProgress(null);
-        setExporting(false);
-        if (eventSource) eventSource.close();
         return;
       }
 
-      if (!res.body) throw new Error('ReadableStream not supported');
-      const reader = res.body.getReader();
-      const chunks: Uint8Array[] = [];
-      let bytesReceived = 0;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (value) {
-          chunks.push(value);
-          bytesReceived += value.length;
-          const mb = (bytesReceived / (1024 * 1024)).toFixed(1);
-          setExportProgress((prev) => (prev ? { ...prev, bytesReadMB: mb } : null));
-        }
-      }
-
-      const blob = new Blob(chunks as BlobPart[], { type: 'application/zip' });
+      const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
 
       let ext = 'zip';
       if (exportFormat === 'astrodx') ext = 'adx';
-
+      
       const contentDisp = res.headers.get('Content-Disposition');
       let fileName = `maimai_export_${exportFormat}.${ext}`;
       if (contentDisp && contentDisp.includes('filename=')) {
@@ -413,33 +355,11 @@ interface ExportProgress {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-
-      // Show completion checkmark state
-      setExportProgress((prev) =>
-        prev
-          ? {
-              ...prev,
-              processed: prev.total,
-              percent: 100,
-              currentSong: 'Export Complete!',
-              isComplete: true,
-            }
-          : null
-      );
-
-      // Wait 2.5 seconds before clearing selection and resetting progress dock
-      setTimeout(() => {
-        clearSelection();
-        setExportProgress(null);
-        setExporting(false);
-      }, 2500);
     } catch (e) {
       console.error('Export failed:', e);
       alert('Failed to process download.');
-      setExportProgress(null);
-      setExporting(false);
     } finally {
-      if (eventSource) eventSource.close();
+      setExporting(false);
     }
   };
 
@@ -475,6 +395,7 @@ interface ExportProgress {
   const exportFormatOptions = [
     { value: 'astrodx', label: 'AstroDX (.adx)' },
     { value: 'majdata', label: 'Majdata Play (.zip)' },
+    { value: 'sonolus', label: 'Sonolus (.scp)' },
     { value: 'raw', label: 'Raw Passthrough' },
   ];
 
@@ -652,7 +573,7 @@ interface ExportProgress {
                     {isSelected ? (
                       <CheckSquare size={18} color="var(--accent-primary)" />
                     ) : (
-                      <Square size={18} color="#6b7280" />
+                      <Square size={18} color="var(--text-muted)" />
                     )}
                   </div>
 
@@ -744,14 +665,18 @@ interface ExportProgress {
                           {isSelected ? (
                             <CheckSquare size={18} color="var(--accent-primary)" />
                           ) : (
-                            <Square size={18} color="#6b7280" />
+                            <Square size={18} color="var(--text-muted)" />
                           )}
                         </div>
                       </td>
                       <td>
                         <div className="table-cover">
                           {song.cover_file && (
-                            <img src={`/api/songs/${song.id}/cover`} alt={song.title} />
+                            <img
+                              src={`/api/songs/${song.id}/cover`}
+                              alt={song.title}
+                              onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                            />
                           )}
                         </div>
                       </td>
@@ -770,9 +695,7 @@ interface ExportProgress {
                         <div className="table-artist">{song.artist}</div>
                       </td>
                       <td>
-                        <span style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>
-                          {formatVersionName(song.version)}
-                        </span>
+                        <span className="table-version">{formatVersionName(song.version)}</span>
                       </td>
                       <td>{song.genre}</td>
                       <td>{song.bpm || '-'}</td>
@@ -918,73 +841,47 @@ interface ExportProgress {
 
       {/* Floating Batch Export Cart Dock */}
       {selectedIds.size > 0 && (
-        <div className={`export-dock ${activeAudioSong ? 'has-audio-dock' : ''} ${exporting ? 'is-exporting' : ''}`}>
-          {exportProgress ? (
-            <div className="export-progress-panel">
-              <div className="export-progress-header">
-                <div className="export-progress-status">
-                  {exportProgress.isComplete ? (
-                    <Check size={18} color="#10b981" className="export-complete-check" />
-                  ) : (
-                    <RefreshCw size={16} className="spinner" color="var(--accent-primary)" />
-                  )}
-                  <span className="export-progress-title">
-                    {exportProgress.isComplete ? 'Export Complete!' : exportProgress.currentSong}
-                  </span>
-                </div>
-                <div className={`export-progress-badge ${exportProgress.isComplete ? 'complete' : ''}`}>
-                  {exportProgress.percent}%
-                </div>
-              </div>
-
-              <div className="export-progress-track">
-                <div 
-                  className={`export-progress-fill ${exportProgress.isComplete ? 'complete' : ''}`} 
-                  style={{ width: `${exportProgress.percent}%` }}
-                />
-              </div>
-
-              <div className="export-progress-subtext">
-                <span>{exportProgress.processed} / {exportProgress.total} songs packaged</span>
-                <span>{exportProgress.bytesReadMB} MB streamed</span>
-              </div>
+        <div className={`export-dock ${activeAudioSong ? 'has-audio-dock' : ''}`}>
+          <div className="export-info">
+            <div className="export-count">
+              <ListChecks size={16} color="var(--accent-primary)" /> {selectedIds.size} {selectedIds.size === 1 ? 'Song' : 'Songs'} Selected
             </div>
-          ) : (
-            <>
-              <div className="export-info">
-                <div className="export-count">
-                  <Sparkles size={16} color="var(--accent-primary)" /> {selectedIds.size} Songs Selected
-                </div>
-                <div className="export-subtext">Ready for batch streaming</div>
-              </div>
+            <div className="export-subtext">Ready for batch streaming</div>
+          </div>
 
-              {/* Format Picker Custom Dropdown */}
-              <CustomDropdown 
-                options={exportFormatOptions}
-                value={exportFormat}
-                onChange={(val) => setExportFormat(val as any)}
-                minWidth="160px"
-                dropUp={true}
-              />
+          {/* Format Picker Custom Dropdown */}
+          <CustomDropdown 
+            options={exportFormatOptions}
+            value={exportFormat}
+            onChange={(val) => setExportFormat(val as any)}
+            minWidth="160px"
+            dropUp={true}
+          />
 
-              {/* Download Action Button */}
-              <button 
-                className="btn-export"
-                disabled={exporting}
-                onClick={handleExport}
-              >
-                <Download size={16} /> Export {exportFormat === 'astrodx' ? 'ADX' : exportFormat === 'raw' ? 'RAW' : 'ZIP'}
-              </button>
+          {/* Download Action Button */}
+          <button 
+            className="btn-export"
+            disabled={exporting}
+            onClick={handleExport}
+          >
+            {exporting ? (
+              <>
+                <RefreshCw size={16} className="spinner" /> Exporting...
+              </>
+            ) : (
+              <>
+                <Download size={16} /> Export {exportFormat === 'astrodx' ? 'ADX' : exportFormat === 'sonolus' ? 'SCP' : 'ZIP'}
+              </>
+            )}
+          </button>
 
-              <button 
-                className="btn-icon"
-                onClick={clearSelection}
-                title="Clear selection"
-              >
-                <X size={18} />
-              </button>
-            </>
-          )}
+          <button 
+            className="btn-icon"
+            onClick={clearSelection}
+            title="Clear selection"
+          >
+            <X size={18} />
+          </button>
         </div>
       )}
     </div>

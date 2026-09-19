@@ -1,5 +1,8 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 import path from 'path';
 import dotenv from 'dotenv';
 import { db } from './db';
@@ -12,8 +15,25 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+const apiMaxRequests = parseInt(process.env.RATE_LIMIT_API_MAX || '200', 10);
+const apiWindowMs = parseInt(process.env.RATE_LIMIT_API_WINDOW_MS || '60000', 10);
+
+const apiLimiter = rateLimit({
+  windowMs: apiWindowMs,
+  max: apiMaxRequests,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many API requests. Please try again shortly.' }
+});
+
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
+app.use(compression());
 app.use(cors());
 app.use(express.json());
+app.use('/api', apiLimiter);
 
 // Locate chart data directories
 const primaryDir = process.env.DATA_CACHE_DIR || path.resolve(__dirname, '../..');

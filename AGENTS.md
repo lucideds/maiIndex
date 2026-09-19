@@ -16,7 +16,7 @@
 ### Frontend
 - **Framework & Bundler**: React 19, Vite (v6), TypeScript (v5)
 - **UI Icons**: `lucide-react`
-- **Design System**: Custom Minimalist Dark CSS System (`index.css`) featuring custom CSS variables, slate color palette (`#0b0f17`), `Inter` typography, custom select dropdowns, floating audio & batch export docks.
+- **Design System**: Custom "Cabinet Dark" CSS System (`index.css`) featuring custom CSS variables, a warm near-black palette sourced from the project mascot art (`public/pom.png`), `M PLUS` typography, custom select dropdowns, floating audio & batch export docks.
 
 ### Containerization & Deployment
 - Docker & Docker Compose (`docker-compose.yml`, multi-stage `Dockerfile`)
@@ -42,9 +42,9 @@ mai-songs/
 ├── frontend/
 │   ├── src/
 │   │   ├── App.tsx             # Main React application & custom UI components
-│   │   ├── index.css           # Minimalist dark theme CSS design system
+│   │   ├── index.css           # "Cabinet Dark" theme CSS design system
 │   │   └── main.tsx            # React DOM root entrypoint
-│   ├── index.html              # HTML shell & Google Fonts (Inter, Outfit)
+│   ├── index.html              # HTML shell & Google Fonts (M PLUS 1, M PLUS 1 Code, M PLUS Rounded 1c)
 │   ├── vite.config.ts          # Vite build & proxy settings
 │   └── package.json
 ├── data/
@@ -67,24 +67,34 @@ mai-songs/
   3. Workspace root fallback (`process.cwd()`)
 
 ### 2. Frontend Design System (`index.css` & `App.tsx`)
-- **Theme**: Minimalist Dark Mode (`--bg-body: #0b0f17`, `--bg-card: #131b2e`, `--border-color: #1f2937`, `--accent-primary: #3b82f6`).
-- **Typography**: Google Font `Inter` for clean, highly readable UI text across grid cards, table rows, and floating control docks.
+- **Theme — "Cabinet Dark"**: Warm near-black surfaces with a single butter-yellow accent. Palette is sampled from the project's own mascot art (`frontend/public/pom.png`: butter `#f0f0a8`, oxblood `#781818`, plum `#481830`, warm grey `#483030`), so it is a sourced identity rather than a framework default.
+  - Surfaces: `--bg-body: #0e0b0d`, `--bg-card: #171316`, `--border-color: #2b2326`.
+  - Accent: `--accent-primary: #f0e9a3` (actions, selection, focus) with `--accent-ink: #1c1512` for text on accent fills.
+  - Alert: `--alert: #e08272` (clear filters, destructive actions).
+  - UI chrome stays desaturated **on purpose**: the difficulty tiers own every saturated hue, and the accent is reserved for interactive state.
+- **Anti-slop rules (MUST)**:
+  - **No gradients** on any surface, button, badge, or progress bar — solid fills only.
+  - **No glow** (`box-shadow: 0 0 <N>px <color>`); depth comes from contrast, borders, and offset shadows only.
+  - **No hover transforms** (lift/scale); hover communicates state via background/border color. All motion MUST respect the `prefers-reduced-motion` block at the end of `index.css`.
+  - **Radius by role**, never one value everywhere: `--radius-xs: 2px` (badges, tags, chips), `--radius-sm: 5px` (buttons, inputs), `--radius-md: 9px` (cards, panels, tables), `--radius-lg: 14px` (floating docks, modals). Circles (play buttons, slider thumbs) stay deliberately round.
+  - **New colors MUST come from the token block** in `:root`; no hardcoded hex/rgba in rules or in JSX (`color="var(--text-muted)"`, not `color="#6b7280"`).
+- **Typography — one JP-first superfamily** (the catalog is mixed Japanese/English):
+  - `--font-display: 'M PLUS Rounded 1c'` — brand wordmark and headings; echoes the cabinet marquee's rounded register.
+  - `--font-ui: 'M PLUS 1'` — all UI copy, card titles, table cells, docks.
+  - `--font-mono: 'M PLUS 1 Code'` — song IDs, difficulty badges, BPM, seeker timestamps, code previews; tabular by construction.
+  - Fonts load from Google Fonts in `index.html`; do not reintroduce `Inter`/`Outfit` or any single face used everywhere.
 - **Custom Dropdowns (`CustomDropdown`)**:
-  - Replaces native browser `<select>` controls across Version, Genre, Cabinet, Sort, and Export Format filters with custom dark slate popover menus, active state checkmarks, and click-outside dismissal.
+  - Replaces native browser `<select>` controls across Version, Genre, Cabinet, Sort, and Export Format filters with custom popover menus, active state checkmarks, and click-outside dismissal.
   - **Viewport Bounds & Direction Detection**: Calculates available screen space on open to auto-position popover menus upwards (`dropUp` / `.drop-up`) when near the bottom viewport edge, or align right (`alignRight` / `.align-right`) when near the right screen edge.
   - Export format dropdown in `.export-dock` explicitly opens upwards above the floating cart.
 - **Audio Preview Dock & Seeker**:
   - Floating bottom audio dock (`.audio-dock`) with backdrop blur.
   - Interactive scrubbable song seeker slider (`.seeker-slider`) with real-time timestamp display (`currentTime` / `duration`).
   - Smooth, non-snapping volume control (`step="0.001"`) with active percentage tooltip badge (automatically hidden on mobile <640px to prioritize the seeker bar).
-- **Floating Export Dock & Real-time Progress Bar (`.export-dock`, `.export-progress-panel`)**:
-  - Floating bottom-right cart dock for format selection and batch download execution.
-  - Transforms into an interactive real-time progress panel during active exports, driven by Server-Sent Events (SSE) and `ReadableStream` chunk byte tracking.
-  - Displays glowing percentage fill, song count (`14 / 50 songs packaged`), active song title, and streamed volume (`15.4 MB streamed`).
-  - Displays a green completion badge (`Export Complete!`) for 2.5 seconds upon completion before clearing selection.
 - **Mobile & Tablet Responsiveness**:
   - Fluid 2-column song card grid on mobile viewports (`minmax(150px, 1fr)`).
-  - Floating docks stack vertically on mobile (<768px): `.export-dock.has-audio-dock` stacks at `bottom: 78px` above `.audio-dock` to prevent control overlap.
+  - `.export-dock.has-audio-dock` always stacks the cart above the centered audio dock (`.audio-dock` is centered at 760px wide, the cart is right-anchored, so they collide from ~900px up — not only on mobile).
+  - Below 640px the cart wraps to two rows (`flex-wrap`): selection count + close on row one, format picker + export button on row two, so the format label is never truncated.
 - **Dual Pagination & Layout Clearance**:
   - Dedicated top pagination bar above the song grid/table alongside standard bottom pagination.
   - `.app-main` features `120px`-`160px` bottom padding to ensure floating audio/export docks never obscure bottom pagination buttons or song cards.
@@ -105,7 +115,7 @@ mai-songs/
 
 ### 5. Song Title & Cabinet Formatting (`formatSongTitle`, `getCabinetType`)
 - Trailing `[SD]` and `[DX]` chart indicators in raw titles are stripped for display via `formatSongTitle()` to maintain clean title presentation matching official arcade jukebox UIs.
-- Cabinet format (`SD` vs `DX`) is displayed via glowing `.cabinet-pill` tags (`DX` in cyan gradient, `SD` in translucent slate) mounted on song card cover art and inline in Table View.
+- Cabinet format (`SD` vs `DX`) is displayed via `.cabinet-pill` tags (solid `--dx-accent` teal for `DX`, translucent slate for `SD`) mounted on song card cover art and inline in Table View.
 
 ---
 
@@ -127,10 +137,8 @@ mai-songs/
 
 ### Export & Conversion API (`/api/export`)
 - `POST /api/export`: Streams zip archive of selected songs converted on-the-fly.
-  - Request Body: `{ songIds: string[], format: 'astrodx' | 'majdata' | 'raw', exportId?: string }`
-  - Response: Streams `.adx` or `.zip` file on-the-fly without temporary disk storage.
-- `GET /api/export/progress/:exportId`: Real-time Server-Sent Events (SSE) or JSON progress stream for active exports.
-  - Response: `{ exportId, total, processed, currentSong, percent, status: 'processing' | 'completed' | 'error' }`
+  - Request Body: `{ songIds: string[], format: 'astrodx' | 'majdata' | 'sonolus' | 'raw' }`
+  - Response: Streams `.adx`, `.sonolus.zip`, or `.zip` file on-the-fly without temporary disk storage.
 
 ---
 
