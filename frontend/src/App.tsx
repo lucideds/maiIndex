@@ -530,16 +530,23 @@ export default function App() {
 
           <div className="view-toggle">
             <button 
-              className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
-              onClick={() => setViewMode('grid')}
+              className={`view-btn ${viewMode === 'grid' && !pickMode ? 'active' : ''}`}
+              onClick={() => { setViewMode('grid'); setPickMode(false); }}
             >
               <LayoutGrid size={15} /> Grid
             </button>
             <button 
-              className={`view-btn ${viewMode === 'table' ? 'active' : ''}`}
-              onClick={() => setViewMode('table')}
+              className={`view-btn ${viewMode === 'table' && !pickMode ? 'active' : ''}`}
+              onClick={() => { setViewMode('table'); setPickMode(false); }}
             >
               <List size={15} /> Table
+            </button>
+            <button
+              className={`view-btn ${pickMode ? 'active' : ''}`}
+              onClick={() => setPickMode(m => !m)}
+              title="Pick one chart at a time instead of browsing"
+            >
+              <Shuffle size={15} /> Pick
             </button>
           </div>
         </div>
@@ -604,13 +611,6 @@ export default function App() {
 
           {/* Select Page Actions */}
           <div className="filter-right-actions">
-            <button
-              className={`btn-secondary ${pickMode ? 'active' : ''}`}
-              onClick={() => setPickMode(m => !m)}
-              title="Pick one chart at a time instead of browsing"
-            >
-              <Shuffle size={14} /> Pick
-            </button>
             <button 
               className="btn-secondary"
               onClick={selectAllCurrentPage}
