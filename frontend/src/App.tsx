@@ -6,7 +6,7 @@ import {
   Shuffle, SkipForward, RotateCcw, Trash2
 } from 'lucide-react';
 import {
-  activeRanges, availableLevels, buildPool, chartsFor, drawSong, formatLevel,
+  activeRanges, availableLevels, buildPool, chartsFor, drawSong,
   loadState, poolOptions, saveState,
   type PickSong, type PickState, type Range,
 } from './picker';
@@ -116,6 +116,59 @@ function CustomDropdown({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+interface RangeSliderProps {
+  min: number;
+  max: number;
+  value: [number, number];
+  onChange: (value: [number, number]) => void;
+  onCommit?: (value: [number, number]) => void;
+}
+
+/**
+ * Level range as a dual-thumb slider over whole levels - a level range is a bracket,
+ * not a pair of exact values, and nobody wants to pick "12.3" out of a menu.
+ * Widths are percentages of the track, the thumbs sit on the two native range inputs.
+ */
+function RangeSlider({ min, max, value, onChange, onCommit }: RangeSliderProps) {
+  const span = Math.max(1, max - min);
+  const pct = (n: number) => ((n - min) / span) * 100;
+  const [low, high] = value;
+
+  return (
+    <div className="dual-range-container">
+      <div className="dual-range-track-bg" />
+      <div
+        className="dual-range-track-active"
+        style={{ left: `${pct(low)}%`, right: `${100 - pct(high)}%` }}
+      />
+      <input
+        type="range"
+        className="dual-range-input"
+        min={min}
+        max={max}
+        step={1}
+        value={low}
+        aria-label="Lowest level"
+        onChange={(e) => onChange([Math.min(Number(e.target.value), high), high])}
+        onPointerUp={() => onCommit?.(value)}
+        onKeyUp={() => onCommit?.(value)}
+      />
+      <input
+        type="range"
+        className="dual-range-input"
+        min={min}
+        max={max}
+        step={1}
+        value={high}
+        aria-label="Highest level"
+        onChange={(e) => onChange([low, Math.max(Number(e.target.value), low)])}
+        onPointerUp={() => onCommit?.(value)}
+        onKeyUp={() => onCommit?.(value)}
+      />
     </div>
   );
 }
@@ -297,14 +350,19 @@ export default function App() {
 
   const handleClearPlayed = () => applyPick({ ...pick, played: {} });
 
-  const setRange = (index: 0 | 1, bound: 0 | 1, value: number) => {
-    const ranges = pick.ranges.map(r => [...r]) as [Range, Range];
-    ranges[index][bound] = value;
-    if (ranges[index][0] > ranges[index][1]) {
-      ranges[index] = ranges[index].sort((a, b) => a - b) as Range;
-    }
-    applyPick({ ...pick, ranges });
+  const withRange = (ranges: [Range, Range], index: 0 | 1, value: Range): [Range, Range] => {
+    const next = ranges.map(r => [...r]) as [Range, Range];
+    next[index] = value;
+    return next;
   };
+
+  // Dragging updates the pool count live; the card only redraws when the thumb is
+  // released, so a drag doesn't shuffle the song under your finger.
+  const previewRange = (index: 0 | 1, value: Range) =>
+    setPick({ ...pick, ranges: withRange(pick.ranges, index, value) });
+
+  const commitRange = (index: 0 | 1, value: Range) =>
+    applyPick({ ...pick, ranges: withRange(pick.ranges, index, value) });
 
   const toggleSelectSong = (shortid: string) => {
     const next = new Set(selectedIds);
@@ -458,7 +516,9 @@ export default function App() {
   // Pick-mode derived values
   const pickCharts = card ? chartsFor(card, activeRanges(pick)) : null;
   const pickPoolSize = catalog.length > 0 ? buildPool(catalog, poolOptions(pick, card?.shortid)).length : 0;
-  const levelOptions = availableLevels(catalog).map(level => ({ value: String(level), label: formatLevel(level) }));
+  const catalogLevels = availableLevels(catalog);
+  const levelMin = catalogLevels.length > 0 ? Math.max(1, Math.floor(catalogLevels[0])) : 1;
+  const levelMax = catalogLevels.length > 0 ? Math.ceil(catalogLevels[catalogLevels.length - 1]) : 15;
   const playedThisSession = Object.keys(pick.sessionPlayed).length;
 
   // Format dropdown options
@@ -626,17 +686,27 @@ export default function App() {
             <div className="pick-controls">
               <div className="pick-range">
                 <span className="pick-range-label">You</span>
-                <CustomDropdown options={levelOptions} value={String(pick.ranges[0][0])} onChange={(val) => setRange(0, 0, Number(val))} minWidth="84px" />
-                <span className="pick-range-sep">–</span>
-                <CustomDropdown options={levelOptions} value={String(pick.ranges[0][1])} onChange={(val) => setRange(0, 1, Number(val))} minWidth="84px" />
+                <span className="pick-range-value">{pick.ranges[0][0]}–{pick.ranges[0][1]}</span>
+                <RangeSlider
+                  min={levelMin}
+                  max={levelMax}
+                  value={pick.ranges[0]}
+                  onChange={(value) => previewRange(0, value)}
+                  onCommit={(value) => commitRange(0, value)}
+                />
               </div>
 
               {pick.twoPlayer && (
                 <div className="pick-range">
                   <span className="pick-range-label">Them</span>
-                  <CustomDropdown options={levelOptions} value={String(pick.ranges[1][0])} onChange={(val) => setRange(1, 0, Number(val))} minWidth="84px" />
-                  <span className="pick-range-sep">–</span>
-                  <CustomDropdown options={levelOptions} value={String(pick.ranges[1][1])} onChange={(val) => setRange(1, 1, Number(val))} minWidth="84px" />
+                  <span className="pick-range-value">{pick.ranges[1][0]}–{pick.ranges[1][1]}</span>
+                  <RangeSlider
+                    min={levelMin}
+                    max={levelMax}
+                    value={pick.ranges[1]}
+                    onChange={(value) => previewRange(1, value)}
+                    onCommit={(value) => commitRange(1, value)}
+                  />
                 </div>
               )}
 

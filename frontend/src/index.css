@@ -1937,9 +1937,20 @@ button, input, select {
   color: var(--text-muted);
 }
 
-.pick-range-sep {
-  color: var(--text-muted);
+.pick-range-value {
   font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-main);
+  min-width: 46px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The shared dual-thumb slider is a full-width control; here it sits inline. */
+.pick-range .dual-range-container {
+  width: 170px;
+  height: 28px;
+  margin: 0;
 }
 
 .pick-checkbox {
