@@ -34,7 +34,9 @@ export function createSongRouter(dataDir: string) {
       const cabinet = (req.query.cabinet as string || '').trim();
       const sort = (req.query.sort as string || 'id_asc').trim();
       const page = Math.max(1, parseInt(req.query.page as string || '1', 10));
-      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string || '24', 10)));
+      // Pick mode loads the whole catalog (1804 songs) to draw from, so the clamp has
+      // to admit more than a page of 24. Still bounded - this is not an open-ended query.
+      const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit as string || '24', 10)));
       const offset = (page - 1) * limit;
 
       let whereClauses: string[] = [];
