@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import yauzl from 'yauzl';
 import { db } from '../db';
+import { parseRange } from '../httpRange';
 import { streamBatchExport } from '../services/streamEngine';
 
 export function createSongRouter(dataDir: string) {
@@ -170,7 +171,7 @@ export function createSongRouter(dataDir: string) {
     }
 
     const targetEntry = `${song.folder_path}/${song.cover_file}`;
-    streamEntryFromZip(zipPath, targetEntry, res, song.cover_file.endsWith('.png') ? 'image/png' : 'image/jpeg');
+    streamEntryFromZip(req, zipPath, targetEntry, res, song.cover_file.endsWith('.png') ? 'image/png' : 'image/jpeg');
   });
 
   // Stream Audio Preview
@@ -190,7 +191,7 @@ export function createSongRouter(dataDir: string) {
     }
 
     const targetEntry = `${song.folder_path}/${song.audio_file}`;
-    streamEntryFromZip(zipPath, targetEntry, res, song.audio_file.endsWith('.ogg') ? 'audio/ogg' : 'audio/mpeg');
+    streamEntryFromZip(req, zipPath, targetEntry, res, song.audio_file.endsWith('.ogg') ? 'audio/ogg' : 'audio/mpeg');
   });
 
   // Batch Export Endpoint
@@ -229,36 +230,71 @@ export function createSongRouter(dataDir: string) {
   return router;
 }
 
-function streamEntryFromZip(zipPath: string, entryPath: string, res: Response, contentType: string) {
-  yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) => {
-    if (err || !zipfile) {
-      res.status(404).end();
-      return;
-    }
+// ponytail: zip entries are buffered whole so we can honour Range requests
+// (mobile Safari refuses to seek media served without byte ranges). Preview
+// audio and covers are a few MB; upgrade to on-the-fly entry slicing if entries ever get huge.
+async function streamEntryFromZip(req: Request, zipPath: string, entryPath: string, res: Response, contentType: string) {
+  const buf = await readZipEntry(zipPath, entryPath);
+  if (!buf) {
+    res.status(404).end();
+    return;
+  }
 
-    zipfile.readEntry();
-    zipfile.on('entry', (entry) => {
-      if (entry.fileName === entryPath) {
-        res.setHeader('Content-Type', contentType);
-        res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.setHeader('Accept-Ranges', 'bytes');
+
+  const range = parseRange(req.headers.range, buf.length);
+  if (range === 'unsatisfiable') {
+    res.setHeader('Content-Range', `bytes */${buf.length}`);
+    res.status(416).end();
+    return;
+  }
+  if (range) {
+    res.setHeader('Content-Range', `bytes ${range.start}-${range.end}/${buf.length}`);
+    res.setHeader('Content-Length', String(range.end - range.start + 1));
+    res.status(206).end(buf.subarray(range.start, range.end + 1));
+    return;
+  }
+  res.setHeader('Content-Length', String(buf.length));
+  res.end(buf);
+}
+
+function readZipEntry(zipPath: string, entryPath: string): Promise<Buffer | null> {
+  return new Promise((resolve) => {
+    yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) => {
+      if (err || !zipfile) {
+        resolve(null);
+        return;
+      }
+
+      let settled = false;
+      const done = (value: Buffer | null) => {
+        if (settled) return;
+        settled = true;
+        try { zipfile.close(); } catch {}
+        resolve(value);
+      };
+
+      zipfile.on('entry', (entry) => {
+        if (entry.fileName !== entryPath) {
+          zipfile.readEntry();
+          return;
+        }
         zipfile.openReadStream(entry, (err, readStream) => {
           if (err || !readStream) {
-            try { zipfile.close(); } catch {}
-            res.status(500).end();
+            done(null);
             return;
           }
-          readStream.pipe(res);
-          readStream.on('end', () => { try { zipfile.close(); } catch {} });
-          readStream.on('error', () => { try { zipfile.close(); } catch {} });
+          const chunks: Buffer[] = [];
+          readStream.on('data', (chunk) => chunks.push(chunk));
+          readStream.on('end', () => done(Buffer.concat(chunks)));
+          readStream.on('error', () => done(null));
         });
-      } else {
-        zipfile.readEntry();
-      }
-    });
-
-    zipfile.on('end', () => {
-      try { zipfile.close(); } catch {}
-      if (!res.headersSent) res.status(404).end();
+      });
+      zipfile.on('end', () => done(null));
+      zipfile.on('error', () => done(null));
+      zipfile.readEntry();
     });
   });
 }
