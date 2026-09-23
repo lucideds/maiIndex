@@ -670,7 +670,8 @@ export default function App() {
             </button>
           )}
 
-          {/* Select Page Actions */}
+          {/* Select Page Actions — browsing only; pick mode has no checkboxes */}
+          {!pickMode && (
           <div className="filter-right-actions">
             <button 
               className="btn-secondary"
@@ -679,6 +680,7 @@ export default function App() {
               <CheckSquare size={14} /> Select Page ({songs.length})
             </button>
           </div>
+          )}
         </div>
 
         {/* Pick Card, or the Songs Layout (Grid or Table View) */}
