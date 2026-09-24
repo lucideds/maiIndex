@@ -3,11 +3,11 @@ import {
   Search, Music, Download, LayoutGrid, List, Play, Pause, 
   CheckSquare, Square, Filter, RefreshCw, X, ListChecks,
   Volume2, VolumeX, ArrowUpDown, ChevronDown, Check,
-  Shuffle, SkipForward, RotateCcw, Trash2
+  Shuffle, SkipForward, RotateCcw, Trash2, Info
 } from 'lucide-react';
 import {
   activeRanges, availableLevels, buildPool, chartsFor, drawSong,
-  loadState, poolOptions, saveState,
+  loadState, poolOptions, saveState, SLOTS,
   type PickSong, type PickState, type Range,
 } from './picker';
 
@@ -29,6 +29,18 @@ interface Song {
   lv_5?: string;
   lv_6?: string;
   lv_7?: string;
+}
+
+interface SongDetail {
+  shortid: string;
+  title: string;
+  artist: string;
+  bpm: string;
+  genre: string;
+  version: string;
+  cabinet: string;
+  charter: string | null;
+  charts: { slot: number; level: string; notes: number | null }[];
 }
 
 interface CustomDropdownOption {
@@ -465,15 +477,15 @@ export default function App() {
     newAudio.onended = () => setIsPlaying(false);
   };
 
-  const handleExport = async () => {
-    if (selectedIds.size === 0) return;
+  const exportSongs = async (ids: string[]) => {
+    if (ids.length === 0) return;
     setExporting(true);
     try {
       const res = await fetch('/api/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          songIds: Array.from(selectedIds),
+          songIds: ids,
           format: exportFormat,
         }),
       });
@@ -510,6 +522,26 @@ export default function App() {
     } finally {
       setExporting(false);
     }
+  };
+
+  const handleExport = () => {
+    if (selectedIds.size === 0) return;
+    exportSongs(Array.from(selectedIds));
+  };
+
+  // Song detail modal: stats parsed from the zip's maidata.txt on demand
+  const [detailSong, setDetailSong] = useState<Song | null>(null);
+  const [detailData, setDetailData] = useState<SongDetail | null>(null);
+  const openDetail = (song: Song) => {
+    setDetailSong(song);
+    setDetailData(null);
+    fetch(`/api/songs/${song.id}/detail`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('detail fetch failed'))))
+      .then(setDetailData)
+      .catch(() => {
+        alert('Failed to load chart info.');
+        setDetailSong(null);
+      });
   };
 
   const isFilterActive = version || genre || cabinet || search || sort !== 'id_asc';
@@ -562,7 +594,7 @@ export default function App() {
       <header className="app-header">
         <div className="brand-section">
           <div className="brand-icon">
-            <img src="/pom.png" alt="MaiIndex Icon" className="brand-pom-icon" />
+            <img src="/pwa-192.png" alt="MaiIndex Icon" className="brand-pom-icon" />
           </div>
           <div>
             <h1 className="brand-title">
@@ -648,7 +680,9 @@ export default function App() {
             minWidth="140px"
           />
 
-          {/* Sorting Custom Dropdown */}
+          {/* Sorting Custom Dropdown - browsing only, pick draws randomly */}
+          {!pickMode && (
+          <>
           <div className="filter-label" style={{ marginLeft: '4px' }}>
             <ArrowUpDown size={14} /> Sort:
           </div>
@@ -659,6 +693,8 @@ export default function App() {
             placeholder="Sort by..."
             minWidth="180px"
           />
+          </>
+          )}
 
           {/* Clear Filters Button */}
           {isFilterActive && (
@@ -759,6 +795,8 @@ export default function App() {
                       src={`/api/songs/${card.id}/cover`}
                       alt={card.title}
                       className="cover-image"
+                      title="Chart info"
+                      onClick={() => openDetail(card)}
                       onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                     />
                   ) : (
@@ -790,6 +828,9 @@ export default function App() {
                     </button>
                     <button className="btn-secondary" onClick={handleSkip}>
                       <SkipForward size={14} /> Skip
+                    </button>
+                    <button className="btn-secondary" onClick={() => openDetail(card)}>
+                      <Info size={14} /> Chart info
                     </button>
                     <button className="btn-secondary" onClick={handlePlayed}>
                       <Check size={14} /> Played
@@ -891,6 +932,8 @@ export default function App() {
                         src={`/api/songs/${song.id}/cover`} 
                         alt={song.title}
                         className="cover-image"
+                        title="Chart info"
+                        onClick={() => openDetail(song)}
                         onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                       />
                     ) : (
@@ -982,7 +1025,7 @@ export default function App() {
                         </div>
                       </td>
                       <td>
-                        <div className="table-title">
+                        <div className="table-title" onClick={() => openDetail(song)} title="Chart info">
                           {formatSongTitle(song.title)}
                           {cabinet && (
                             <span 
@@ -1139,6 +1182,92 @@ export default function App() {
           >
             <X size={18} />
           </button>
+        </div>
+      )}
+
+      {/* Song Detail Modal - chart stats + download */}
+      {detailSong && (
+        <div className="modal-overlay" onClick={() => setDetailSong(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title-box">
+                {detailSong.cover_file ? (
+                  <img className="modal-cover" src={`/api/songs/${detailSong.id}/cover`} alt="" />
+                ) : (
+                  <div className="modal-cover" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Music size={22} />
+                  </div>
+                )}
+                <div>
+                  <div className="modal-heading">{formatSongTitle(detailSong.title)}</div>
+                  <div className="detail-sub">{detailSong.artist}</div>
+                </div>
+              </div>
+              <button className="btn-icon" onClick={() => setDetailSong(null)} title="Close">
+                <X size={18} />
+              </button>
+            </div>
+
+            {!detailData ? (
+              <div className="modal-body">
+                <div className="loading-state" style={{ padding: '30px 0' }}>
+                  <RefreshCw size={28} className="spinner" style={{ margin: '0 auto 12px', display: 'block', color: 'var(--accent-primary)' }} />
+                  Loading chart info...
+                </div>
+              </div>
+            ) : (
+              <div className="modal-body">
+                <div className="designer-grid">
+                  <div className="designer-card"><div className="designer-label">BPM</div><div className="designer-name">{detailData.bpm || '—'}</div></div>
+                  <div className="designer-card"><div className="designer-label">Genre</div><div className="designer-name">{detailData.genre || '—'}</div></div>
+                  <div className="designer-card"><div className="designer-label">Version</div><div className="designer-name">{formatVersionName(detailData.version)}</div></div>
+                  <div className="designer-card"><div className="designer-label">Cabinet</div><div className="designer-name">{detailData.cabinet || '—'}</div></div>
+                  <div className="designer-card"><div className="designer-label">Charter</div><div className="designer-name">{detailData.charter || '—'}</div></div>
+                  <div className="designer-card"><div className="designer-label">Song ID</div><div className="designer-name">{detailData.shortid}</div></div>
+                </div>
+
+                <div className="detail-heading">Charts</div>
+                <div className="detail-charts">
+                  {detailData.charts.length === 0 && (
+                    <div className="detail-sub">No charts indexed for this song.</div>
+                  )}
+                  {detailData.charts.map((chart) => {
+                    const slot = SLOTS.find((s) => s.key === `lv_${chart.slot}`);
+                    return (
+                      <div key={chart.slot} className="detail-chart-row">
+                        <span className={`badge ${slot?.badge || 'badge-basic'}`}>
+                          {slot?.label || `lv_${chart.slot}`} {chart.level}
+                        </span>
+                        <span className="detail-chart-notes">
+                          {chart.notes === null
+                            ? 'note count unavailable'
+                            : <><strong className="detail-notes-strong">{chart.notes.toLocaleString()}</strong> notes</>}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="modal-actions">
+                  <CustomDropdown
+                    options={exportFormatOptions}
+                    value={exportFormat}
+                    onChange={(val) => setExportFormat(val as any)}
+                    minWidth="170px"
+                  />
+                  <button className="btn-export" disabled={exporting} onClick={() => exportSongs([detailSong.shortid])}>
+                    {exporting ? <RefreshCw size={16} className="spinner" /> : <Download size={16} />}
+                    {exporting ? 'Exporting...' : 'Download'}
+                  </button>
+                  {detailSong.audio_file && (
+                    <button className="btn-secondary" onClick={() => handleAudioPlay(detailSong)}>
+                      {activeAudioSong?.id === detailSong.id && isPlaying ? <Pause size={14} /> : <Play size={14} />} Preview
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

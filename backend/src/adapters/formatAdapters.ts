@@ -72,44 +72,13 @@ export function transformToSonolusLevel(
   rawText: string,
   meta: { shortid?: string; title?: string; artist?: string; cover_file?: string; audio_file?: string; folder_path?: string }
 ): SonolusExportResult {
-  const lines = rawText.split(/\r?\n/);
-  let title = meta.title || 'Maimai Chart';
-  let artist = meta.artist || 'Unknown Artist';
-  let author = 'Official';
-  let firstOffset = 0;
-  let currentBpm = 120;
-  const inotes: Record<string, string> = {};
-
-  let currentKey = '';
-  let currentValue = '';
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('&')) {
-      if (currentKey && currentValue) {
-        processHeader(currentKey, currentValue.trim());
-      }
-      const eqIdx = trimmed.indexOf('=');
-      if (eqIdx !== -1) {
-        currentKey = trimmed.slice(1, eqIdx).toLowerCase();
-        currentValue = trimmed.slice(eqIdx + 1);
-      }
-    } else if (currentKey) {
-      currentValue += '\n' + line;
-    }
-  }
-  if (currentKey && currentValue) {
-    processHeader(currentKey, currentValue.trim());
-  }
-
-  function processHeader(key: string, val: string) {
-    if (key === 'title') title = val || title;
-    if (key === 'artist') artist = val || artist;
-    if (key === 'des') author = val || author;
-    if (key === 'first') firstOffset = parseFloat(val) || 0;
-    if (key === 'bpm' || key === 'wholebpm') currentBpm = parseFloat(val) || currentBpm;
-    if (key.startsWith('inote_')) inotes[key] = val;
-  }
+  const header = parseMaidataHeader(rawText);
+  const title = header.title || meta.title || 'Maimai Chart';
+  const artist = header.artist || meta.artist || 'Unknown Artist';
+  const author = header.charter || 'Official';
+  const firstOffset = header.first;
+  const currentBpm = header.bpm;
+  const inotes = header.inotes;
 
   // Select chart difficulty (prefer inote_5 / Master, fallback to highest available)
   const chartText = inotes['inote_5'] || inotes['inote_6'] || inotes['inote_4'] || inotes['inote_3'] || inotes['inote_2'] || inotes['inote_1'] || '';
@@ -150,6 +119,90 @@ export function transformToSonolusLevel(
     levelItemJson: JSON.stringify(levelItemObj, null, 2),
     levelDataGzip
   };
+}
+
+export interface MaidataHeader {
+  title: string;
+  artist: string;
+  charter: string;
+  bpm: number;
+  first: number;
+  inotes: Record<string, string>;
+}
+
+/**
+ * &key=value headers; a value continues across lines until the next &key.
+ * Shared by the Sonolus transform and the /songs/:id/detail endpoint.
+ */
+export function parseMaidataHeader(rawText: string): MaidataHeader {
+  const header: MaidataHeader = { title: '', artist: '', charter: '', bpm: 120, first: 0, inotes: {} };
+  let currentKey = '';
+  let currentValue = '';
+
+  const flush = () => {
+    if (!currentKey || !currentValue) return;
+    const val = currentValue.trim();
+    if (currentKey === 'title') header.title = val || header.title;
+    if (currentKey === 'artist') header.artist = val || header.artist;
+    if (currentKey === 'des') header.charter = val || header.charter;
+    if (currentKey === 'first') header.first = parseFloat(val) || 0;
+    if (currentKey === 'bpm' || currentKey === 'wholebpm') header.bpm = parseFloat(val) || header.bpm;
+    if (currentKey.startsWith('inote_')) header.inotes[currentKey] = val;
+  };
+
+  for (const line of rawText.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('&')) {
+      flush();
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx !== -1) {
+        currentKey = trimmed.slice(1, eqIdx).toLowerCase();
+        currentValue = trimmed.slice(eqIdx + 1);
+      }
+    } else if (currentKey) {
+      currentValue += '\n' + line;
+    }
+  }
+  flush();
+  return header;
+}
+
+/**
+ * Note objects in one simai chart stream: tap=1, hold=1, slide=1, touch=1.
+ * Lane digits inside [h:mm] brackets are timings, not notes; C is standalone
+ * while A/B/D/E carry a lane digit. Self-check: formatAdapters.test.ts.
+ */
+export function countChartNotes(chartText: string): number {
+  if (!chartText) return 0;
+  let notes = 0;
+  for (const block of chartText.split(',')) {
+    let pos = 0;
+    while (pos < block.length) {
+      const ch = block[pos];
+      if (ch === '(') { const e = block.indexOf(')', pos); pos = e === -1 ? block.length : e + 1; continue; }
+      if (ch === '{') { const e = block.indexOf('}', pos); pos = e === -1 ? block.length : e + 1; continue; }
+      if (ch === '[') { const e = block.indexOf(']', pos); pos = e === -1 ? block.length : e + 1; continue; }
+      if (ch >= '1' && ch <= '8') {
+        if (block[pos + 1] === 'h') { notes++; pos += 2; continue; }          // hold
+        if (block[pos + 1] === '-') {                                          // slide: 1-4[..], 1-(4)[..]
+          notes++; pos += 2;
+          if (block[pos] >= '1' && block[pos] <= '8') pos++;
+          else if (block[pos] === '(') { const e = block.indexOf(')', pos); pos = e === -1 ? block.length : e + 1; }
+          if (block[pos] === 'h') pos++;
+          continue;
+        }
+        notes++; pos++; continue;                                              // tap
+      }
+      if (/[A-Ea-e]/.test(ch)) {                                               // touch
+        notes++;
+        const laneLetter = ch.toLowerCase() !== 'c';
+        pos += laneLetter && /[1-8]/.test(block[pos + 1] ?? '') ? 2 : 1;
+        continue;
+      }
+      pos++;
+    }
+  }
+  return notes;
 }
 
 function parseSimaiNotes(chartText: string, initialBpm: number, firstOffset: number, entities: any[]) {

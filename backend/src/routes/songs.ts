@@ -5,6 +5,7 @@ import yauzl from 'yauzl';
 import { db } from '../db';
 import { parseRange } from '../httpRange';
 import { streamBatchExport } from '../services/streamEngine';
+import { countChartNotes, parseMaidataHeader } from '../adapters/formatAdapters';
 
 export function createSongRouter(dataDir: string) {
   const router = Router();
@@ -152,6 +153,42 @@ export function createSongRouter(dataDir: string) {
     } catch (e) {
       res.status(500).json({ error: 'Failed to fetch song details.' });
     }
+  });
+
+  // Chart detail: charter + per-slot note counts, parsed from the zip's maidata.txt
+  router.get('/songs/:id/detail', async (req: Request, res: Response) => {
+    const song = db.prepare(`SELECT * FROM songs WHERE id = ? OR shortid = ?`)
+      .get(req.params.id, req.params.id) as any;
+    if (!song) {
+      res.status(404).json({ error: 'Song not found.' });
+      return;
+    }
+
+    const zipPath = findZipPath(song.zip_file);
+    const buf = zipPath ? await readZipEntry(zipPath, `${song.folder_path}/maidata.txt`) : null;
+    const header = buf ? parseMaidataHeader(buf.toString('utf-8')) : null;
+
+    const charts = [1, 2, 3, 4, 5, 6, 7]
+      .filter((n) => song[`lv_${n}`])
+      .map((n) => ({
+        slot: n,
+        level: song[`lv_${n}`],
+        notes: header && header.inotes[`inote_${n}`]
+          ? countChartNotes(header.inotes[`inote_${n}`])
+          : null,
+      }));
+
+    res.json({
+      shortid: song.shortid,
+      title: song.title,
+      artist: song.artist,
+      bpm: song.bpm,
+      genre: song.genre,
+      version: song.version,
+      cabinet: song.cabinet,
+      charter: header?.charter || null,
+      charts,
+    });
   });
 
   // Stream Cover Image
