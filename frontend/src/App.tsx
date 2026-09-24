@@ -857,6 +857,14 @@ export default function App() {
             ) : (
               <div className="empty-state">
                 Nothing left in that range — widen it, clear a filter, reset the session, or clear played history.
+                <div className="pick-actions" style={{ justifyContent: 'center', marginTop: 14 }}>
+                  <button className="btn-export" onClick={handleResetSession}>
+                    <RotateCcw size={15} /> Reset session
+                  </button>
+                  <button className="btn-secondary" onClick={handleClearPlayed}>
+                    <Trash2 size={14} /> Clear played history
+                  </button>
+                </div>
               </div>
             )}
           </div>
