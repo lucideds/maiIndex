@@ -584,7 +584,7 @@ export default function App() {
   const exportFormatOptions = [
     { value: 'astrodx', label: 'AstroDX (.adx)' },
     { value: 'majdata', label: 'Majdata Play (.zip)' },
-    { value: 'sonolus', label: 'Sonolus (.scp)' },
+    { value: 'sonolus', label: 'Sonolus (.scp) — Experimental' },
     { value: 'raw', label: 'Raw Passthrough' },
   ];
 
