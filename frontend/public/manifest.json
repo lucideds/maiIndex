@@ -1,6 +1,6 @@
 {
-  "name": "MaiIndex | Maimai DX Chart Hub & Converter",
-  "short_name": "MaiIndex",
+  "name": "maiIndex | Maimai DX Chart Hub & Converter",
+  "short_name": "maiIndex",
   "description": "Maimai DX song catalog search, chart preview and batch export.",
   "id": "/",
   "start_url": "/",

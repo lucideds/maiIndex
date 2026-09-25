@@ -594,11 +594,11 @@ export default function App() {
       <header className="app-header">
         <div className="brand-section">
           <div className="brand-icon">
-            <img src="/pwa-192.png" alt="MaiIndex Icon" className="brand-pom-icon" />
+            <img src="/pwa-192.png" alt="maiIndex Icon" className="brand-pom-icon" />
           </div>
           <div>
             <h1 className="brand-title">
-              <span className="brand-mai">Mai</span>
+              <span className="brand-mai">mai</span>
               <span className="brand-accent-i">I</span>
               <span className="brand-ndex">ndex</span>
             </h1>
