@@ -127,11 +127,13 @@ mai-songs/
   - `version`: Filter by version string.
   - `genre`: Filter by genre string.
   - `cabinet`: Filter by cabinet (`SD` or `DX`).
+  - `min` / `max`: Level bracket. A song matches when **any** of its seven slots falls inside it — the same predicate `picker.ts` uses. Each is independently optional; a missing bound is an open end. `+` levels normalise to `.7` (`13+` = 13.7) and empty slots to `-1` so they can never match.
   - `sort`: `id_asc`, `id_desc`, `title_asc`, `title_desc`, `diff_desc`, `diff_asc`, `bpm_desc`, `bpm_asc`.
   - `page`: Page index (default `1`).
   - `limit`: Items per page (default `24`).
 - `GET /api/songs/versions`: Returns list of available version strings and song counts.
 - `GET /api/songs/genres`: Returns list of available genres and song counts.
+- `GET /api/songs/levels`: Distinct level strings across all seven slots, numerically ordered. Feeds the browse-view slider bounds — derive them from the whole catalog here, never from the visible page. Uses `UNION ALL` over the columns, not `json_each`: the table-valued JSON functions are not compiled into every SQLite build.
 - `GET /api/songs/:id/cover`: Streams cover image from the associated zip archive.
 - `GET /api/songs/:id/audio`: Streams preview audio file from the associated zip archive.
 
@@ -164,5 +166,5 @@ docker compose up --build -d
 # View container logs
 docker compose logs -f
 ```
-- Web Application WebUI: **`http://localhost:3001`**
-- Healthcheck Endpoint: **`http://localhost:3001/health`**
+- Web Application WebUI: **`http://localhost:8763`**
+- Healthcheck Endpoint: **`http://localhost:8763/health`**

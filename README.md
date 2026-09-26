@@ -47,7 +47,7 @@ Then run it with your chart archives and SQLite data mounted:
 docker run -d \
   --name maiindex \
   --restart unless-stopped \
-  -p 3001:3001 \
+  -p 8763:8763 \
   -e ENABLE_GITHUB_SYNC=false \
   -e MAX_BATCH_SONGS=100 \
   -e MAX_CONCURRENT_EXPORTS=5 \
@@ -76,9 +76,9 @@ services:
     container_name: maiindex
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "8763:8763"
     environment:
-      - PORT=3001
+      - PORT=8763
       - DATA_CACHE_DIR=/data/cache
       - DATA_DB_DIR=/data/db
       - ENABLE_GITHUB_SYNC=false
@@ -114,8 +114,8 @@ Available tags: `latest` (default branch), `main`, release tags from `v*` git ta
 
 #### A3. Access Application
 
-- Web App UI: **`http://localhost:3001`**
-- Healthcheck: **`http://localhost:3001/health`**
+- Web App UI: **`http://localhost:8763`**
+- Healthcheck: **`http://localhost:8763/health`**
 
 ---
 
@@ -127,7 +127,7 @@ Available tags: `latest` (default branch), `main`, release tags from `v*` git ta
 cd backend
 npm install
 
-# Start development server with hot-reload (runs on port 3001)
+# Start development server with hot-reload (runs on port 8763)
 npm run dev
 ```
 
@@ -137,7 +137,7 @@ npm run dev
 cd frontend
 npm install
 
-# Start Vite dev server (runs on port 3000 with API proxy to 3001)
+# Start Vite dev server (runs on port 3000 with API proxy to 8763)
 npm run dev
 ```
 
@@ -151,7 +151,7 @@ The backend can be configured using environment variables in a `.env` file or wi
 
 | Environment Variable     | Default Value  | Description                                                                      |
 | :----------------------- | :------------- | :------------------------------------------------------------------------------- |
-| `PORT`                   | `3001`         | Express backend server port.                                                     |
+| `PORT`                   | `8763`         | Express backend server port.                                                     |
 | `DATA_CACHE_DIR`         | `./data/cache` | Directory containing source chart `.zip` archives.                               |
 | `DATA_DB_DIR`            | `./data/db`    | Directory where `maimai.db` SQLite database is saved.                            |
 | `MAX_BATCH_SONGS`        | `100`          | Maximum number of songs allowed per batch export.                                |

@@ -5,7 +5,23 @@ import yauzl from 'yauzl';
 import { db } from '../db';
 import { parseRange } from '../httpRange';
 import { streamBatchExport } from '../services/streamEngine';
-import { countChartNotes, parseMaidataHeader } from '../adapters/formatAdapters';
+import { chartDurationSeconds, countChartNotes, parseMaidataHeader } from '../adapters/formatAdapters';
+
+// One detail payload per song, forever. Parsing pulls maidata.txt out of a multi-GB
+// zip and the archive cannot change under a song already indexed (shortid is unique,
+// last-write-wins), so a hit is always correct. ponytail: unbounded; add an LRU
+// eviction only if the index ever grows past what fits in memory.
+const detailCache = new Map<string, any>();
+
+// Slot columns, low to high. Bindings are fixed by AGENTS.md - never collapse to indices.
+const LEVEL_COLUMNS = ['lv_1', 'lv_2', 'lv_3', 'lv_4', 'lv_5', 'lv_6', 'lv_7'] as const;
+
+/**
+ * SQL for one level column as a float: "13+" is 13.7 and fractional levels like
+ * 10.2 are real, matching levelNum() in frontend/src/picker.ts.
+ */
+const levelSql = (col: string) =>
+  `CAST(REPLACE(COALESCE(NULLIF(${col}, ''), '-1'), '+', '.7') AS FLOAT)`;
 
 export function createSongRouter(dataDir: string) {
   const router = Router();
@@ -62,6 +78,21 @@ export function createSongRouter(dataDir: string) {
       if (cabinet) {
         whereClauses.push('cabinet = ?');
         params.push(cabinet);
+      }
+
+      // Level bracket: a song matches when ANY slot falls inside it - the same
+      // "has a chart in this range" predicate the picker uses. `+` levels normalise
+      // to .7 and empty slots to -1 so they can never match a real bracket.
+      const minLevel = parseFloat(req.query.min as string);
+      const maxLevel = parseFloat(req.query.max as string);
+      if (Number.isFinite(minLevel) || Number.isFinite(maxLevel)) {
+        // Numeric sentinels, not +/-Infinity: those are the safest values to bind.
+        const lo = Number.isFinite(minLevel) ? minLevel : -1e9;
+        const hi = Number.isFinite(maxLevel) ? maxLevel : 1e9;
+        whereClauses.push(
+          `(${LEVEL_COLUMNS.map((c) => `${levelSql(c)} BETWEEN ? AND ?`).join(' OR ')})`
+        );
+        params.push(...LEVEL_COLUMNS.flatMap(() => [lo, hi]));
       }
 
       const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
@@ -125,6 +156,25 @@ export function createSongRouter(dataDir: string) {
     }
   });
 
+  // Get Level List - the bounds for the browse-view level bracket. Derived from the
+  // whole table, not the visible page, so the slider never clips the real range.
+  // UNION ALL rather than json_each: the table-valued JSON functions are not
+  // compiled into every SQLite build (node:22-alpine's is not).
+  router.get('/songs/levels', (req: Request, res: Response) => {
+    try {
+      const union = LEVEL_COLUMNS.map((c) => `SELECT ${c} AS level FROM songs`).join(' UNION ALL ');
+      const rows = db.prepare(`
+        SELECT DISTINCT TRIM(level) AS level
+        FROM (${union})
+        WHERE level IS NOT NULL AND level <> ''
+        ORDER BY ${levelSql('level')}
+      `).all() as { level: string }[];
+      res.json(rows.map((r) => r.level));
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to fetch levels.' });
+    }
+  });
+
   // Get Genre List
   router.get('/songs/genres', (req: Request, res: Response) => {
     try {
@@ -155,7 +205,8 @@ export function createSongRouter(dataDir: string) {
     }
   });
 
-  // Chart detail: charter + per-slot note counts, parsed from the zip's maidata.txt
+  // Chart detail: charter + per-slot note counts and notes-per-second, parsed from
+  // the zip's maidata.txt. Cached per shortid - see detailCache above.
   router.get('/songs/:id/detail', async (req: Request, res: Response) => {
     const song = db.prepare(`SELECT * FROM songs WHERE id = ? OR shortid = ?`)
       .get(req.params.id, req.params.id) as any;
@@ -164,21 +215,36 @@ export function createSongRouter(dataDir: string) {
       return;
     }
 
+    const cached = detailCache.get(song.shortid);
+    if (cached) {
+      res.json(cached);
+      return;
+    }
+
     const zipPath = findZipPath(song.zip_file);
     const buf = zipPath ? await readZipEntry(zipPath, `${song.folder_path}/maidata.txt`) : null;
     const header = buf ? parseMaidataHeader(buf.toString('utf-8')) : null;
+    // The header's bpm is the chart's opening tempo; mid-chart ({bpm}) changes are
+    // picked up by chartDurationSeconds as it walks the stream.
+    const bpm = header?.bpm || parseFloat(song.bpm) || 0;
 
-    const charts = [1, 2, 3, 4, 5, 6, 7]
-      .filter((n) => song[`lv_${n}`])
-      .map((n) => ({
-        slot: n,
-        level: song[`lv_${n}`],
-        notes: header && header.inotes[`inote_${n}`]
-          ? countChartNotes(header.inotes[`inote_${n}`])
-          : null,
-      }));
+    const charts = LEVEL_COLUMNS
+      .map((col, i) => ({ slot: i + 1, level: song[col] }))
+      .filter((c) => c.level)
+      .map(({ slot, level }) => {
+        const inote = header?.inotes[`inote_${slot}`];
+        if (!inote) return { slot, level, notes: null, nps: null };
+        const notes = countChartNotes(inote);
+        const seconds = chartDurationSeconds(inote, bpm);
+        return {
+          slot,
+          level,
+          notes,
+          nps: seconds > 0 ? Math.round((notes / seconds) * 100) / 100 : null,
+        };
+      });
 
-    res.json({
+    const payload = {
       shortid: song.shortid,
       title: song.title,
       artist: song.artist,
@@ -188,7 +254,10 @@ export function createSongRouter(dataDir: string) {
       cabinet: song.cabinet,
       charter: header?.charter || null,
       charts,
-    });
+    };
+
+    detailCache.set(song.shortid, payload);
+    res.json(payload);
   });
 
   // Stream Cover Image

@@ -6,9 +6,9 @@ services:
     container_name: maimai-song-downloader
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "8763:8763"
     environment:
-      - PORT=3001
+      - PORT=8763
       - DATA_CACHE_DIR=/data/cache
       - DATA_DB_DIR=/data/db
       - GITHUB_PAT=${GITHUB_PAT:-}
@@ -21,7 +21,7 @@ services:
       - ./data/db:/data/db
       - ./:/data/cache_local:ro
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8763/health"]
       interval: 30s
       timeout: 5s
       retries: 3

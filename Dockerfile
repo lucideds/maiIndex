@@ -22,7 +22,7 @@ WORKDIR /app
 RUN apk add --no-cache sqlite-dev su-exec
 
 ENV NODE_ENV=production
-ENV PORT=3001
+ENV PORT=8763
 ENV DATA_CACHE_DIR=/data/cache
 ENV DATA_DB_DIR=/data/db
 
@@ -35,10 +35,10 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-EXPOSE 3001
+EXPOSE 8763
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8763/health || exit 1
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "dist/server.js"]

@@ -205,6 +205,42 @@ export function countChartNotes(chartText: string): number {
   return notes;
 }
 
+/**
+ * Chart length in seconds: one comma-separated block is one subdivision step, so
+ * the total is the sum of (60/bpm) * (4/subdivision) over every block. BPM and
+ * subdivision can change mid-chart via ({bpm}) and {n}. Self-check: formatAdapters.test.ts.
+ */
+export function chartDurationSeconds(chartText: string, initialBpm: number): number {
+  if (!chartText) return 0;
+  let bpm = initialBpm > 0 ? initialBpm : 120;
+  let subdivision = 4;
+  let seconds = 0;
+
+  for (const block of chartText.split(',')) {
+    for (let i = 0; i < block.length; i++) {
+      const ch = block[i];
+      if (ch === '(') {
+        const end = block.indexOf(')', i);
+        if (end !== -1) {
+          // ({240}) wraps the value in braces - parseFloat("{240") is NaN.
+          const v = parseFloat(block.slice(i + 1, end).replace(/[{}]/g, ''));
+          if (v > 0) bpm = v;
+          i = end;
+        }
+      } else if (ch === '{') {
+        const end = block.indexOf('}', i);
+        if (end !== -1) {
+          const v = parseInt(block.slice(i + 1, end), 10);
+          if (v > 0) subdivision = v;
+          i = end;
+        }
+      }
+    }
+    seconds += (60 / bpm) * (4 / subdivision);
+  }
+  return seconds;
+}
+
 function parseSimaiNotes(chartText: string, initialBpm: number, firstOffset: number, entities: any[]) {
   if (!chartText) return;
 

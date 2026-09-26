@@ -13,7 +13,7 @@ import { createSongRouter } from './routes/songs';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8763;
 
 const apiMaxRequests = parseInt(process.env.RATE_LIMIT_API_MAX || '200', 10);
 const apiWindowMs = parseInt(process.env.RATE_LIMIT_API_WINDOW_MS || '60000', 10);

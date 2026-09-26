@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, Music, Download, LayoutGrid, List, Play, Pause, 
   CheckSquare, Square, Filter, RefreshCw, X, ListChecks,
@@ -40,7 +40,7 @@ interface SongDetail {
   version: string;
   cabinet: string;
   charter: string | null;
-  charts: { slot: number; level: string; notes: number | null }[];
+  charts: { slot: number; level: string; notes: number | null; nps: number | null }[];
 }
 
 interface CustomDropdownOption {
@@ -195,10 +195,16 @@ export default function App() {
 
   // Filters
   const [search, setSearch] = useState('');
+  // The input is uncontrolled-by-typing and the query is debounced, so a paste or a
+  // fast typist is one request instead of one per keystroke.
+  const [searchInput, setSearchInput] = useState('');
   const [version, setVersion] = useState('');
   const [genre, setGenre] = useState('');
   const [cabinet, setCabinet] = useState('');
   const [sort, setSort] = useState('id_asc');
+  // Browse-view level bracket. null = no filter; the server does the matching.
+  const [levelRange, setLevelRange] = useState<Range | null>(null);
+  const [levels, setLevels] = useState<string[]>([]);
   
   // Available filter options
   const [versions, setVersions] = useState<{ version: string; count: number }[]>([]);
@@ -236,7 +242,16 @@ export default function App() {
   // Load songs on filter/page/sort change
   useEffect(() => {
     fetchSongs();
-  }, [page, search, version, genre, cabinet, sort]);
+  }, [page, search, version, genre, cabinet, sort, levelRange]);
+
+  // Debounce the search box into the actual query (250ms) and reset to page one.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   // Load filter options on mount
   useEffect(() => {
@@ -286,6 +301,10 @@ export default function App() {
         cabinet,
         sort,
       });
+      if (levelRange) {
+        params.set('min', String(levelRange[0]));
+        params.set('max', String(levelRange[1]));
+      }
       const res = await fetch(`/api/songs?${params.toString()}`);
       const data = await res.json();
       setSongs(data.songs || []);
@@ -300,14 +319,17 @@ export default function App() {
 
   const fetchFilterOptions = async () => {
     try {
-      const [vRes, gRes] = await Promise.all([
+      const [vRes, gRes, lRes] = await Promise.all([
         fetch('/api/songs/versions'),
         fetch('/api/songs/genres'),
+        fetch('/api/songs/levels'),
       ]);
       const vData = await vRes.json();
       const gData = await gRes.json();
+      const lData = await lRes.json();
       setVersions(vData);
       setGenres(gData);
+      setLevels(Array.isArray(lData) ? lData : []);
     } catch (e) {
       console.error('Failed to load filter metadata:', e);
     }
@@ -544,7 +566,18 @@ export default function App() {
       });
   };
 
-  const isFilterActive = version || genre || cabinet || search || sort !== 'id_asc';
+  const isFilterActive = version || genre || cabinet || search || sort !== 'id_asc' || levelRange !== null;
+
+  // Browse-view slider bounds come from the whole catalog, not the visible page.
+  // `?`-suffixed levels ("12.0?") are chart-uncertainty markers, not a level - levelNum
+  // already parses them as their number, and the bracket is a whole-level range anyway.
+  const browseLevels = useMemo(
+    () => levels.map((s) => parseFloat(s.replace(/\?$/, '').replace(/\+$/, '.7'))).filter(Number.isFinite),
+    [levels]
+  );
+  const browseMin = browseLevels.length > 0 ? Math.max(1, Math.floor(Math.min(...browseLevels))) : 1;
+  const browseMax = browseLevels.length > 0 ? Math.ceil(Math.max(...browseLevels)) : 15;
+  const browseRange: Range = levelRange ?? [browseMin, browseMax];
 
   // Pick-mode derived values
   const pickCharts = card ? chartsFor(card, activeRanges(pick)) : null;
@@ -612,12 +645,12 @@ export default function App() {
         <div className="header-controls">
           <div className="search-bar">
             <Search size={18} className="search-icon" />
-            <input 
-              type="text" 
+            <input
+              type="text"
               className="search-input"
-              placeholder="Search title, artist, or song ID..." 
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              placeholder="Search title, artist, or song ID..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
           </div>
 
@@ -696,11 +729,37 @@ export default function App() {
           </>
           )}
 
+          {/* Level bracket - browsing only. One full-width row, same shape as the
+              pick-mode sliders, so the thumbs get room to be dragged. */}
+          {!pickMode && (
+            <div className="filter-range">
+              <span className="pick-range-label">Level</span>
+              <RangeSlider
+                min={browseMin}
+                max={browseMax}
+                value={browseRange}
+                onChange={(value) => setLevelRange(value)}
+              />
+              <span className="pick-range-value">
+                {levelRange ? `${levelRange[0]}–${levelRange[1]}` : 'All'}
+              </span>
+              {levelRange && (
+                <button className="btn-reset" onClick={() => { setLevelRange(null); setPage(1); }}>
+                  <X size={14} /> Any
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Clear Filters Button */}
           {isFilterActive && (
-            <button 
+            <button
               className="btn-reset"
-              onClick={() => { setVersion(''); setGenre(''); setCabinet(''); setSearch(''); setSort('id_asc'); setPage(1); }}
+              onClick={() => {
+                setVersion(''); setGenre(''); setCabinet('');
+                setSearch(''); setSearchInput(''); setSort('id_asc');
+                setLevelRange(null); setPage(1);
+              }}
             >
               <X size={14} /> Clear
             </button>
@@ -936,11 +995,13 @@ export default function App() {
                     )}
 
                     {song.cover_file ? (
-                      <img 
-                        src={`/api/songs/${song.id}/cover`} 
+                      <img
+                        src={`/api/songs/${song.id}/cover`}
                         alt={song.title}
                         className="cover-image"
                         title="Chart info"
+                        loading="lazy"
+                        decoding="async"
                         onClick={() => openDetail(song)}
                         onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                       />
@@ -1027,6 +1088,8 @@ export default function App() {
                             <img
                               src={`/api/songs/${song.id}/cover`}
                               alt={song.title}
+                              loading="lazy"
+                              decoding="async"
                               onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                             />
                           )}
@@ -1249,7 +1312,8 @@ export default function App() {
                         <span className="detail-chart-notes">
                           {chart.notes === null
                             ? 'note count unavailable'
-                            : <><strong className="detail-notes-strong">{chart.notes.toLocaleString()}</strong> notes</>}
+                            : <><strong className="detail-notes-strong">{chart.notes.toLocaleString()}</strong> notes
+                              {chart.nps !== null && <> · <span className="detail-nps">{chart.nps.toFixed(2)} nps</span></>}</>}
                         </span>
                       </div>
                     );
