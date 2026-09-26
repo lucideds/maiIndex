@@ -135,7 +135,7 @@ button, input, select {
   max-width: 1440px;
   width: 100%;
   margin: 0 auto;
-  padding: 28px 28px 120px; /* 120px bottom clearance for floating audio/export docks */
+  padding: 28px 28px 40px; /* bottom clearance now belongs to the footer */
   flex-grow: 1;
 }
 
@@ -304,6 +304,35 @@ button, input, select {
 .view-btn.active {
   background-color: var(--accent-primary);
   color: var(--accent-ink);
+}
+
+/* --------------------------------------------------------------------------
+   Footer
+   -------------------------------------------------------------------------- */
+/* Bottom padding clears the fixed audio/export docks, same as .app-main. */
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px 28px 104px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.footer-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.footer-sep {
+  color: var(--border-subtle);
 }
 
 /* --------------------------------------------------------------------------
@@ -746,6 +775,8 @@ button, input, select {
 .pagination-text {
   font-size: 13px;
   color: var(--text-muted);
+  /* The counts roll; fixed-width digits stop the bar resizing under them. */
+  font-variant-numeric: tabular-nums;
 }
 
 .pagination-text strong {

@@ -43,6 +43,41 @@ interface SongDetail {
   charts: { slot: number; level: string; notes: number | null; nps: number | null }[];
 }
 
+/**
+ * Counts up or down to a new number. Short and eased out on purpose - the point
+ * is that the number moved, not to watch it roll. Jumps straight to the value
+ * under prefers-reduced-motion, like every other animation in the app.
+ */
+function Odometer({ value }: { value: number }) {
+  const [shown, setShown] = useState(value);
+  const lastRef = useRef(value);
+  const frameRef = useRef(0);
+
+  useEffect(() => {
+    if (lastRef.current === value) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      lastRef.current = value;
+      setShown(value);
+      return;
+    }
+    const from = lastRef.current;
+    const start = performance.now();
+    const step = (t: number) => {
+      const p = Math.min(1, (t - start) / 260);
+      const current = Math.round(from + (value - from) * (1 - Math.pow(1 - p, 3)));
+      // Track the last rendered value so an interrupted roll resumes from where it
+      // actually is, not from where it started.
+      lastRef.current = current;
+      setShown(current);
+      if (p < 1) frameRef.current = requestAnimationFrame(step);
+    };
+    frameRef.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frameRef.current);
+  }, [value]);
+
+  return <>{shown.toLocaleString()}</>;
+}
+
 interface CustomDropdownOption {
   value: string;
   label: string;
@@ -211,6 +246,10 @@ export default function App() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  // Separate from `loading`: the busy dim only appears if a request is genuinely
+  // slow. A local response lands in ~10ms, and a dim that lights up and straight
+  // back off is the jarring part, not the loading.
+  const [busy, setBusy] = useState(false);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -314,6 +353,7 @@ export default function App() {
 
   const fetchSongs = async () => {
     setLoading(true);
+    const slow = setTimeout(() => setBusy(true), 180);
     try {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -336,6 +376,8 @@ export default function App() {
     } catch (e) {
       console.error('Failed to fetch songs:', e);
     } finally {
+      clearTimeout(slow);
+      setBusy(false);
       setLoading(false);
     }
   };
@@ -652,7 +694,7 @@ export default function App() {
               <span className="brand-ndex">ndex</span>
             </h1>
             <p className="brand-subtitle">
-              Maimai DX Chart Hub & Converter ({totalSongs.toLocaleString()} Charts)
+              maimai DX chart list (<Odometer value={totalSongs} /> Charts)
             </p>
           </div>
         </div>
@@ -664,7 +706,7 @@ export default function App() {
             <input
               type="text"
               className="search-input"
-              placeholder="Search title, artist, or song ID..."
+              placeholder="title, artist, or song ID..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
             />
@@ -754,7 +796,14 @@ export default function App() {
                 stops={browseStops}
                 value={browseRange}
                 onChange={(value) => setLevelRange(value)}
-                onCommit={(value) => { setLevelQuery(value); setPage(1); }}
+                onCommit={(value) => {
+                  // Compare by value, not reference: a fresh [11, 12] array is never
+                  // reference-equal, so re-releasing an unchanged range would refetch
+                  // and flash the grid for a result set that is already on screen.
+                  setLevelQuery(prev =>
+                    prev && prev[0] === value[0] && prev[1] === value[1] ? prev : [value[0], value[1]]);
+                  setPage(1);
+                }}
               />
               <span className="pick-range-value">
                 {levelRange
@@ -962,11 +1011,11 @@ export default function App() {
         ) : (
           // Results stay mounted while a new page loads - replacing them with a
           // spinner is what made the whole screen jump on every filter change.
-          <div className={`results ${loading ? 'is-loading' : ''}`} aria-busy={loading}>
+          <div className={`results ${busy ? 'is-loading' : ''}`} aria-busy={busy}>
             {/* Top Pagination Bar */}
             <div className="pagination top-pagination">
               <span className="pagination-text">
-                Showing <strong>{songs.length}</strong> charts (Page <strong>{page}</strong> of <strong>{totalPages}</strong>)
+                Showing <strong><Odometer value={songs.length} /></strong> charts (Page <strong><Odometer value={page} /></strong> of <strong><Odometer value={totalPages} /></strong>)
               </span>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <button 
@@ -1180,7 +1229,7 @@ export default function App() {
             Previous
           </button>
           <span className="pagination-text">
-            Page <strong>{page}</strong> of <strong>{totalPages}</strong>
+            Page <strong><Odometer value={page} /></strong> of <strong><Odometer value={totalPages} /></strong>
           </span>
           <button 
             className="btn-pagination"
@@ -1192,6 +1241,14 @@ export default function App() {
         </div>
         )}
       </main>
+
+      <footer className="app-footer">
+        <span className="footer-name">maiIndex</span>
+        <span className="footer-sep" aria-hidden="true">·</span>
+        <span>charts indexed from the maimai archive set</span>
+        <span className="footer-sep" aria-hidden="true">·</span>
+        <span><Odometer value={totalSongs} /> charts</span>
+      </footer>
 
       {/* Floating Audio Dock */}
       {activeAudioSong && (
