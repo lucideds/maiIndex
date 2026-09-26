@@ -170,6 +170,12 @@ function RangeSlider({ stops, value, onChange, onCommit }: RangeSliderProps) {
           className="dual-range-fill"
           style={{ left: `${pct(low)}%`, right: `${100 - pct(high)}%` }}
         />
+        {/* A range input positions its own thumb straight from the value, and there is
+            no CSS property in between to transition, so the thumb you actually see is
+            an element easing to the stop the input snapped to. The real inputs stay on
+            top, transparent, and keep owning the hit testing and the keyboard. */}
+        <span className="dual-range-thumb" style={{ left: `${pct(low)}%` }} aria-hidden="true" />
+        <span className="dual-range-thumb" style={{ left: `${pct(high)}%` }} aria-hidden="true" />
       </div>
       <input
         type="range"

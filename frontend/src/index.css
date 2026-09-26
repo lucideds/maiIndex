@@ -1611,6 +1611,32 @@ button, input, select {
   bottom: -1px;
   background: var(--accent-primary);
   border-radius: var(--radius-xs);
+  /* Same duration and easing as the thumbs, so fill and thumbs never separate. */
+  transition: left 120ms ease, right 120ms ease;
+}
+
+/* The thumb you see. Lives inside the rail, which is inset by half a thumb on each
+   end, so a percentage here is exactly where the native thumb sits. */
+.dual-range-thumb {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  margin-top: -8px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  border: 2px solid var(--bg-card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  transition: left 120ms ease, background 150ms ease;
+}
+
+/* Hover still reads through the transparent native thumb, which is a child of the
+   container, so hovering the control lights both visible thumbs. */
+.dual-range-container:hover .dual-range-thumb {
+  background: var(--accent-primary-hover);
 }
 
 .dual-range-input {
@@ -1632,31 +1658,18 @@ button, input, select {
   appearance: none;
   width: 16px;
   height: 16px;
-  border-radius: 50%;
-  background: var(--accent-primary);
-  border: 2px solid var(--bg-card);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  /* Invisible, not absent: this element is the hit target that makes the thumb
+     draggable, and .dual-range-thumb is what you actually see. */
+  opacity: 0;
   cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.dual-range-input::-webkit-slider-thumb:hover {
-  background: var(--accent-primary-hover);
 }
 
 .dual-range-input::-moz-range-thumb {
   pointer-events: auto;
   width: 16px;
   height: 16px;
-  border-radius: 50%;
-  background: var(--accent-primary);
-  border: 2px solid var(--bg-card);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  opacity: 0;
   cursor: pointer;
-}
-
-.dual-range-input::-moz-range-thumb:hover {
-  background: var(--accent-primary-hover);
 }
 
 
