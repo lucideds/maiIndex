@@ -221,8 +221,12 @@ export default function App() {
   const [genre, setGenre] = useState('');
   const [cabinet, setCabinet] = useState('');
   const [sort, setSort] = useState('id_asc');
-  // Browse-view level bracket. null = no filter; the server does the matching.
+  // Browse-view level bracket. levelRange is the live thumb position; levelQuery is
+  // what has actually been committed (thumb released, or an arrow key) and is the only
+  // one that fires a request. Same split as the pick-mode sliders, so dragging across
+  // the track is not one request per stop. null = no filter; the server matches.
   const [levelRange, setLevelRange] = useState<Range | null>(null);
+  const [levelQuery, setLevelQuery] = useState<Range | null>(null);
   const [levels, setLevels] = useState<string[]>([]);
   
   // Available filter options
@@ -261,7 +265,7 @@ export default function App() {
   // Load songs on filter/page/sort change
   useEffect(() => {
     fetchSongs();
-  }, [page, search, version, genre, cabinet, sort, levelRange]);
+  }, [page, search, version, genre, cabinet, sort, levelQuery]);
 
   // Debounce the search box into the actual query (250ms) and reset to page one.
   useEffect(() => {
@@ -320,9 +324,9 @@ export default function App() {
         cabinet,
         sort,
       });
-      if (levelRange) {
-        params.set('min', String(levelRange[0]));
-        params.set('max', String(levelRange[1]));
+      if (levelQuery) {
+        params.set('min', String(levelQuery[0]));
+        params.set('max', String(levelQuery[1]));
       }
       const res = await fetch(`/api/songs?${params.toString()}`);
       const data = await res.json();
@@ -585,7 +589,7 @@ export default function App() {
       });
   };
 
-  const isFilterActive = version || genre || cabinet || search || sort !== 'id_asc' || levelRange !== null;
+  const isFilterActive = version || genre || cabinet || search || sort !== 'id_asc' || levelQuery !== null;
 
   // Browse-view slider bounds come from the whole catalog, not the visible page.
   // `?`-suffixed levels ("12.0?") are chart-uncertainty markers, not a level - levelNum
@@ -750,6 +754,7 @@ export default function App() {
                 stops={browseStops}
                 value={browseRange}
                 onChange={(value) => setLevelRange(value)}
+                onCommit={(value) => { setLevelQuery(value); setPage(1); }}
               />
               <span className="pick-range-value">
                 {levelRange
@@ -757,7 +762,7 @@ export default function App() {
                   : 'All'}
               </span>
               {levelRange && (
-                <button className="btn-reset" onClick={() => { setLevelRange(null); setPage(1); }}>
+                <button className="btn-reset" onClick={() => { setLevelRange(null); setLevelQuery(null); setPage(1); }}>
                   <X size={14} /> Any
                 </button>
               )}
@@ -771,7 +776,7 @@ export default function App() {
               onClick={() => {
                 setVersion(''); setGenre(''); setCabinet('');
                 setSearch(''); setSearchInput(''); setSort('id_asc');
-                setLevelRange(null); setPage(1);
+                setLevelRange(null); setLevelQuery(null); setPage(1);
               }}
             >
               <X size={14} /> Clear
@@ -942,17 +947,22 @@ export default function App() {
               </div>
             )}
           </div>
-        ) : loading ? (
-          <div className="loading-state">
-            <RefreshCw size={36} className="spinner" style={{ margin: '0 auto 16px', display: 'block', color: 'var(--accent-primary)' }} />
-            Loading chart collection...
-          </div>
         ) : songs.length === 0 ? (
-          <div className="empty-state">
-            No songs found matching your search criteria.
-          </div>
+          // Nothing to keep on screen yet, so a full-height placeholder is honest.
+          loading ? (
+            <div className="loading-state">
+              <RefreshCw size={36} className="spinner" style={{ margin: '0 auto 16px', display: 'block', color: 'var(--accent-primary)' }} />
+              Loading chart collection...
+            </div>
+          ) : (
+            <div className="empty-state">
+              No songs found matching your search criteria.
+            </div>
+          )
         ) : (
-          <>
+          // Results stay mounted while a new page loads - replacing them with a
+          // spinner is what made the whole screen jump on every filter change.
+          <div className={`results ${loading ? 'is-loading' : ''}`} aria-busy={loading}>
             {/* Top Pagination Bar */}
             <div className="pagination top-pagination">
               <span className="pagination-text">
@@ -1156,7 +1166,7 @@ export default function App() {
             </table>
           </div>
         )}
-      </>
+      </div>
     )}
 
         {/* Pagination Bar - browsing only */}

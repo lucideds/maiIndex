@@ -139,6 +139,19 @@ button, input, select {
   flex-grow: 1;
 }
 
+/* Results stay mounted while a request is in flight, so the busy state is a dim,
+   not a reflow - a spinner here is what made the page jump on every filter change.
+   ponytail: dim only, no skeleton placeholders; add them if a request ever takes
+   long enough that stale results read as wrong ones. */
+.results {
+  transition: opacity 140ms ease;
+}
+
+.results.is-loading {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 /* --------------------------------------------------------------------------
    Header Navigation Bar
    -------------------------------------------------------------------------- */
@@ -209,6 +222,9 @@ button, input, select {
   font-size: 12px;
   color: var(--text-muted);
   font-weight: 400;
+  /* The chart count changes on every request; fixed-width digits stop it nudging
+     the search bar sideways. */
+  font-variant-numeric: tabular-nums;
 }
 
 /* Search Controls */
