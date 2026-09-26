@@ -101,6 +101,28 @@ export const chartsFor = (song: PickSong, ranges: Range[]): Chart[] | null => {
   return charts;
 };
 
+/**
+ * Slider stops: every whole level plus its "+" level, so the track reads
+ * 11, 11+, 12, 12+ ... A "+" stop is X.7, not X.5 - X.7 is how the catalog and
+ * `levelNum` already spell a "+" level, so a bracket that stopped at X.5 would
+ * exclude the very X+ charts it names.
+ */
+export const levelStops = (levels: number[]): number[] => {
+  if (levels.length === 0) return [];
+  const top = Math.max(...levels);
+  const lo = Math.max(1, Math.floor(Math.min(...levels)));
+  // Not ceil(top): when the highest level present is 14.7, a 15 stop would match
+  // nothing, which is the very thing the "+" guard below avoids.
+  const hi = Number.isInteger(top) ? top : Math.floor(top);
+  const stops: number[] = [];
+  for (let i = lo; i <= hi; i++) {
+    stops.push(i);
+    // No "+" stop past the top of the catalog - it would match nothing.
+    if (i + 0.7 <= top) stops.push(i + 0.7);
+  }
+  return stops;
+};
+
 export interface PoolOptions {
   ranges: Range[];
   excludeUtage: boolean;

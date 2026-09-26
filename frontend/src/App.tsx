@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import {
   activeRanges, availableLevels, buildPool, chartsFor, drawSong,
-  loadState, poolOptions, saveState, SLOTS,
+  formatLevel, levelNum, levelStops, loadState, poolOptions, saveState, SLOTS,
   type PickSong, type PickState, type Range,
 } from './picker';
 
@@ -133,22 +133,35 @@ function CustomDropdown({
 }
 
 interface RangeSliderProps {
-  min: number;
-  max: number;
+  /** Ordered stops the thumbs snap to - levelStops(), never a raw min/max grid. */
+  stops: number[];
   value: [number, number];
   onChange: (value: [number, number]) => void;
   onCommit?: (value: [number, number]) => void;
 }
 
 /**
- * Level range as a dual-thumb slider over whole levels - a level range is a bracket,
- * not a pair of exact values, and nobody wants to pick "12.3" out of a menu.
- * Widths are percentages of the track, the thumbs sit on the two native range inputs.
+ * Level range as a dual-thumb slider over real level stops. The native inputs
+ * carry stop *indices* (a range input needs a uniform step, and "+" levels sit at
+ * X.7, not X.5), while every value crossing this boundary is a real level number.
  */
-function RangeSlider({ min, max, value, onChange, onCommit }: RangeSliderProps) {
-  const span = Math.max(1, max - min);
-  const pct = (n: number) => ((n - min) / span) * 100;
-  const [low, high] = value;
+function RangeSlider({ stops, value, onChange, onCommit }: RangeSliderProps) {
+  const last = stops.length - 1;
+  // A stored range can hold a level that is not a stop (state from before the
+  // stops existed) - snap to the nearest rather than render an off-track thumb.
+  const indexOf = (level: number) => {
+    const exact = stops.indexOf(level);
+    if (exact !== -1) return exact;
+    let best = 0;
+    for (let i = 1; i <= last; i++) {
+      if (Math.abs(stops[i] - level) < Math.abs(stops[best] - level)) best = i;
+    }
+    return best;
+  };
+  if (last < 0) return null;
+
+  const [low, high] = value.map(indexOf) as [number, number];
+  const pct = (i: number) => (last > 0 ? (i / last) * 100 : 0);
 
   return (
     <div className="dual-range-container">
@@ -161,24 +174,24 @@ function RangeSlider({ min, max, value, onChange, onCommit }: RangeSliderProps) 
       <input
         type="range"
         className="dual-range-input"
-        min={min}
-        max={max}
+        min={0}
+        max={last}
         step={1}
         value={low}
         aria-label="Lowest level"
-        onChange={(e) => onChange([Math.min(Number(e.target.value), high), high])}
+        onChange={(e) => onChange([stops[Math.min(Number(e.target.value), high)], stops[high]])}
         onPointerUp={() => onCommit?.(value)}
         onKeyUp={() => onCommit?.(value)}
       />
       <input
         type="range"
         className="dual-range-input"
-        min={min}
-        max={max}
+        min={0}
+        max={last}
         step={1}
         value={high}
         aria-label="Highest level"
-        onChange={(e) => onChange([low, Math.max(Number(e.target.value), low)])}
+        onChange={(e) => onChange([stops[low], stops[Math.max(Number(e.target.value), low)]])}
         onPointerUp={() => onCommit?.(value)}
         onKeyUp={() => onCommit?.(value)}
       />
@@ -570,21 +583,14 @@ export default function App() {
 
   // Browse-view slider bounds come from the whole catalog, not the visible page.
   // `?`-suffixed levels ("12.0?") are chart-uncertainty markers, not a level - levelNum
-  // already parses them as their number, and the bracket is a whole-level range anyway.
-  const browseLevels = useMemo(
-    () => levels.map((s) => parseFloat(s.replace(/\?$/, '').replace(/\+$/, '.7'))).filter(Number.isFinite),
-    [levels]
-  );
-  const browseMin = browseLevels.length > 0 ? Math.max(1, Math.floor(Math.min(...browseLevels))) : 1;
-  const browseMax = browseLevels.length > 0 ? Math.ceil(Math.max(...browseLevels)) : 15;
-  const browseRange: Range = levelRange ?? [browseMin, browseMax];
+  // already parses them as their number, and the stops are a fixed grid anyway.
+  const browseStops = useMemo(() => levelStops(levels.map((s) => levelNum(s)).filter(Number.isFinite)), [levels]);
+  const browseRange: Range = levelRange ?? [browseStops[0] ?? 1, browseStops[browseStops.length - 1] ?? 15];
 
   // Pick-mode derived values
   const pickCharts = card ? chartsFor(card, activeRanges(pick)) : null;
   const pickPoolSize = catalog.length > 0 ? buildPool(catalog, poolOptions(pick, card?.shortid)).length : 0;
-  const catalogLevels = availableLevels(catalog);
-  const levelMin = catalogLevels.length > 0 ? Math.max(1, Math.floor(catalogLevels[0])) : 1;
-  const levelMax = catalogLevels.length > 0 ? Math.ceil(catalogLevels[catalogLevels.length - 1]) : 15;
+  const pickStops = levelStops(availableLevels(catalog));
   const playedThisSession = Object.keys(pick.sessionPlayed).length;
 
   // Format dropdown options
@@ -735,13 +741,14 @@ export default function App() {
             <div className="filter-range">
               <span className="pick-range-label">Level</span>
               <RangeSlider
-                min={browseMin}
-                max={browseMax}
+                stops={browseStops}
                 value={browseRange}
                 onChange={(value) => setLevelRange(value)}
               />
               <span className="pick-range-value">
-                {levelRange ? `${levelRange[0]}–${levelRange[1]}` : 'All'}
+                {levelRange
+                  ? `${formatLevel(levelRange[0])}–${formatLevel(levelRange[1])}`
+                  : 'All'}
               </span>
               {levelRange && (
                 <button className="btn-reset" onClick={() => { setLevelRange(null); setPage(1); }}>
@@ -786,26 +793,28 @@ export default function App() {
                 <div className="pick-range">
                   <span className="pick-range-label">You</span>
                   <RangeSlider
-                    min={levelMin}
-                    max={levelMax}
+                    stops={pickStops}
                     value={pick.ranges[0]}
                     onChange={(value) => previewRange(0, value)}
                     onCommit={(value) => commitRange(0, value)}
                   />
-                  <span className="pick-range-value">{pick.ranges[0][0]}–{pick.ranges[0][1]}</span>
+                  <span className="pick-range-value">
+                    {formatLevel(pick.ranges[0][0])}–{formatLevel(pick.ranges[0][1])}
+                  </span>
                 </div>
 
                 {pick.twoPlayer && (
                   <div className="pick-range">
                     <span className="pick-range-label">Them</span>
                     <RangeSlider
-                      min={levelMin}
-                      max={levelMax}
+                      stops={pickStops}
                       value={pick.ranges[1]}
                       onChange={(value) => previewRange(1, value)}
                       onCommit={(value) => commitRange(1, value)}
                     />
-                    <span className="pick-range-value">{pick.ranges[1][0]}–{pick.ranges[1][1]}</span>
+                    <span className="pick-range-value">
+                      {formatLevel(pick.ranges[1][0])}–{formatLevel(pick.ranges[1][1])}
+                    </span>
                   </div>
                 )}
               </div>

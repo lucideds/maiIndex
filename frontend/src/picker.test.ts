@@ -14,6 +14,7 @@ import {
   formatLevel,
   isUtage,
   levelNum,
+  levelStops,
   poolOptions,
   defaultState,
   type PickSong,
@@ -114,4 +115,30 @@ test('availableLevels lists every real level, ascending and unique', () => {
     song({ lv_5: '' }),
   ]);
   assert.deepEqual(levels, [1, 10.2, 12, 13.7]);
+});
+
+test('levelStops: a whole level and its "+" are separate stops, "+" reads as X.7', () => {
+  // 11, 11+, 12, 12+ - the "+" stop must be 11.7, not 11.5, or the bracket would
+  // exclude the very charts it names (the catalog stores 11+ as 11.7).
+  assert.deepEqual(levelStops([11, 12]), [11, 11.7, 12]);
+  assert.deepEqual(levelStops([11, 12]).map(formatLevel), ['11', '11+', '12']);
+});
+
+test('levelStops: no "+" stop past the top of the catalog', () => {
+  // 15.0 is the highest level present, so a 15+ stop would match nothing.
+  assert.deepEqual(levelStops([13, 14, 15]), [13, 13.7, 14, 14.7, 15]);
+  // A "+" level at the top earns its own stop.
+  assert.deepEqual(levelStops([13, 14.7]), [13, 13.7, 14, 14.7]);
+});
+
+test('levelStops: a "+" bracket keeps the "+" charts and drops the next whole level', () => {
+  const stops = levelStops([11, 11.7, 12]);
+  const hi = stops[stops.indexOf(11.7)];
+  const pool = [
+    song({ shortid: 'a', lv_5: '11.0' }),
+    song({ shortid: 'b', lv_5: '11+' }),
+    song({ shortid: 'c', lv_5: '12.0' }),
+  ];
+  const matched = pool.filter((s) => chartsFor(s, [[11, hi]]) !== null).map((s) => s.shortid);
+  assert.deepEqual(matched, ['a', 'b']);
 });
