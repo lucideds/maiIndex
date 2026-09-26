@@ -75,18 +75,22 @@ jobs:
 
       # The image's own HEALTHCHECK hits the same route, but this proves the published
       # port answers and that the SQLite schema initialises on a cold /data/db.
+      # The container listens on $PORT (8763 by default, set in the Dockerfile) - keep
+      # this in step with it or the run publishes a port nothing is bound to.
       - name: Smoke test the image
         env:
           IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
         run: |
           set -euo pipefail
           IMAGE="$(printf '%s\n' "$IMAGE_TAGS" | head -n1)"
+          PORT="$(docker run --rm --entrypoint sh "$IMAGE" -c 'printf %s "$PORT"')"
+          echo "image listens on port ${PORT}"
           docker run --detach --rm --name mai-songs-smoke \
-            --publish 3001:3001 \
+            --publish "${PORT}:${PORT}" \
             --env ENABLE_GITHUB_SYNC=false \
             "$IMAGE"
           for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error http://localhost:3001/health > /tmp/health.json; then
+            if curl --fail --silent --show-error "http://localhost:${PORT}/health" > /tmp/health.json; then
               echo "healthy after ${attempt} attempt(s):"
               cat /tmp/health.json
               exit 0
