@@ -1,7 +1,8 @@
 /* Minimal app-shell service worker.
    ponytail: hand-rolled caching; if offline needs grow (stale-while-revalidate,
    precached font CSS, per-release cache busting for /assets), swap for Workbox. */
-const CACHE = 'maiindex-shell-v1';
+const CACHE = 'maiindex-shell-v2'; // bumped when the icon set changed, or installed
+                                 // PWAs keep serving the precached old icon
 const DATA_CACHE = 'maiindex-api-v1';
 const SHELL = ['/', '/manifest.json', '/favicon.png', '/pwa-192.png', '/pwa-512.png'];
 
