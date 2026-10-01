@@ -72,7 +72,11 @@ export async function streamBatchExport(
     downloadFilename = `${sanitizeFilename(songs[0].title)}.zip`;
   }
 
-  res.setHeader('Content-Type', isSonolus ? 'application/octet-stream' : 'application/zip');
+  // Android's FileUtils.splitFileName() rewrites a display name whose extension doesn't map
+  // back to the declared MIME type, so `Song.adx` + `application/zip` saves as `Song.adx.zip`
+  // (and .scp + octet-stream as `Song.scp.bin`). An unregistered x- type has no default
+  // extension, so the filename passes through untouched.
+  res.setHeader('Content-Type', isAstroDX ? 'application/x-adx' : isSonolus ? 'application/x-scp' : 'application/zip');
   res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(downloadFilename)}"`);
 
   const archive = archiver('zip', { zlib: { level: 6 } });
