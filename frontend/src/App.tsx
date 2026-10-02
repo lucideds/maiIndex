@@ -1461,8 +1461,8 @@ export default function App() {
                       {activeAudioSong?.id === detailSong.id && isPlaying ? <Pause size={14} /> : <Play size={14} />} Preview
                     </button>
                   )}
-                  <button className="btn-secondary" onClick={() => shareSong(detailSong)} title="Share this song">
-                    <Share2 size={14} /> Share
+                  <button className="btn-card-action" onClick={() => shareSong(detailSong)} title="Share this song" aria-label="Share this song">
+                    <Share2 size={15} />
                   </button>
                 </div>
               </div>
