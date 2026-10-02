@@ -3,7 +3,7 @@ import {
   Search, Music, Download, LayoutGrid, List, Play, Pause, 
   CheckSquare, Square, Filter, RefreshCw, X, ListChecks,
   Volume2, VolumeX, ArrowUpDown, ChevronDown, Check,
-  Shuffle, SkipForward, RotateCcw, Trash2, Info
+  Shuffle, SkipForward, RotateCcw, Trash2, Info, Share2
 } from 'lucide-react';
 import {
   activeRanges, availableLevels, buildPool, chartsFor, drawSong,
@@ -630,6 +630,49 @@ export default function App() {
         setDetailSong(null);
       });
   };
+
+  // Closing a deep-linked song drops the param, so the browser URL matches the screen.
+  const closeDetail = () => {
+    setDetailSong(null);
+    if (new URLSearchParams(location.search).has('song')) {
+      history.replaceState(null, '', location.pathname);
+    }
+  };
+
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef(0);
+  const flash = (msg: string) => {
+    setToast(msg);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 2000);
+  };
+
+  // Share a deep link, not just text: the native sheet where it exists, clipboard elsewhere.
+  const shareSong = async (song: Song) => {
+    const url = `${location.origin}${location.pathname}?song=${encodeURIComponent(song.shortid)}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: song.title, text: `${formatSongTitle(song.title)} — ${song.artist}`, url });
+      } catch { /* user dismissed the sheet */ }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      flash('Link copied');
+    } catch {
+      flash('Copy failed');
+    }
+  };
+
+  // Deep link: /?song=<shortid> opens that song's modal, so shared links land on the track.
+  useEffect(() => {
+    const shortid = new URLSearchParams(location.search).get('song');
+    if (!shortid) return;
+    fetch(`/api/songs/${encodeURIComponent(shortid)}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('not found'))))
+      .then((song: Song) => openDetail(song))
+      .catch(() => flash('Song not found'));
+  }, []);
 
   const isFilterActive = version || genre || cabinet || search || sort !== 'id_asc' || levelQuery !== null;
 
@@ -1340,7 +1383,7 @@ export default function App() {
 
       {/* Song Detail Modal - chart stats + download */}
       {detailSong && (
-        <div className="modal-overlay" onClick={() => setDetailSong(null)}>
+        <div className="modal-overlay" onClick={closeDetail}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title-box">
@@ -1356,7 +1399,7 @@ export default function App() {
                   <div className="detail-sub">{detailSong.artist}</div>
                 </div>
               </div>
-              <button className="btn-icon" onClick={() => setDetailSong(null)} title="Close">
+              <button className="btn-icon" onClick={closeDetail} title="Close">
                 <X size={18} />
               </button>
             </div>
@@ -1418,6 +1461,9 @@ export default function App() {
                       {activeAudioSong?.id === detailSong.id && isPlaying ? <Pause size={14} /> : <Play size={14} />} Preview
                     </button>
                   )}
+                  <button className="btn-secondary" onClick={() => shareSong(detailSong)} title="Share this song">
+                    <Share2 size={14} /> Share
+                  </button>
                 </div>
               </div>
             )}
@@ -1468,6 +1514,14 @@ export default function App() {
           >
             <X size={18} />
           </button>
+        </div>
+      )}
+
+      {/* Transient status message (share copy confirmation) */}
+      {toast && (
+        <div className="toast-badge" role="status">
+          <Check size={16} color="var(--accent-primary)" />
+          {toast}
         </div>
       )}
     </div>
