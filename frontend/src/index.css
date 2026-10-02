@@ -94,6 +94,10 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  /* Mobile tap flash: Android paints a translucent overlay on every touch, which
+     reads as a blue smudge over the dark theme. Keyboard focus rings are untouched -
+     this is the touch feedback, not the focus indicator. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
