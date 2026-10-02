@@ -664,6 +664,14 @@ export default function App() {
     }
   };
 
+  // The audio dock sits under the modal overlay, so a preview started from the modal
+  // hands playback to the dock by closing the modal. Pausing it stays in the modal.
+  const previewFromModal = (song: Song) => {
+    const starting = activeAudioSong?.id !== song.id || !isPlaying;
+    handleAudioPlay(song);
+    if (starting) closeDetail();
+  };
+
   // Deep link: /?song=<shortid> opens that song's modal, so shared links land on the track.
   useEffect(() => {
     const shortid = new URLSearchParams(location.search).get('song');
@@ -1457,7 +1465,7 @@ export default function App() {
                     {exporting ? 'Exporting...' : 'Download'}
                   </button>
                   {detailSong.audio_file && (
-                    <button className="btn-secondary" onClick={() => handleAudioPlay(detailSong)}>
+                    <button className="btn-secondary" onClick={() => previewFromModal(detailSong)}>
                       {activeAudioSong?.id === detailSong.id && isPlaying ? <Pause size={14} /> : <Play size={14} />} Preview
                     </button>
                   )}
