@@ -9,6 +9,7 @@ import { db } from './db';
 import { indexAllLocalZips } from './indexer';
 import { initGithubSync } from './services/githubSync';
 import { createSongRouter } from './routes/songs';
+import { createDocsRouter } from './docs';
 
 dotenv.config();
 
@@ -58,6 +59,7 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
+app.use('/api', createDocsRouter());
 app.use('/api', createSongRouter(primaryDir));
 
 // Serve Frontend static assets if available

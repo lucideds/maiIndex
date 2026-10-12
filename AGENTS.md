@@ -36,6 +36,8 @@ mai-songs/
 │   │   │   ├── githubSync.ts   # Optional remote asset indexer
 │   │   │   └── streamEngine.ts # Zero-disk multi-zip streaming engine
 │   │   ├── db.ts               # SQLite connection & query initializer
+│   │   ├── docs.ts             # Serves /api/openapi.json and the Scalar page at /api/docs
+│   │   ├── openapi.ts          # Hand-written OpenAPI 3.1 spec (API source of truth)
 │   │   ├── indexer.ts          # Archive scanner & database populator
 │   │   └── server.ts           # Express server entrypoint & route registration
 │   └── package.json
@@ -121,6 +123,8 @@ mai-songs/
 
 ## 📡 API Endpoints Reference
 
+Interactive docs (Scalar) are public at **`/api/docs`**; the raw spec is at `/api/openapi.json`. The spec lives in `backend/src/openapi.ts` and is **hand-written, so it MUST be updated whenever a route, query param, request body, or response shape is added or changed** (and this section with it). Nothing checks it for drift. Scalar loads from a version-pinned jsDelivr URL in `docs.ts`.
+
 ### Songs API (`/api/songs`)
 - `GET /api/songs`: Query song catalog with query parameters:
   - `search`: Filter title, artist, or short ID.
@@ -134,6 +138,8 @@ mai-songs/
 - `GET /api/songs/versions`: Returns list of available version strings and song counts.
 - `GET /api/songs/genres`: Returns list of available genres and song counts.
 - `GET /api/songs/levels`: Distinct level strings across all seven slots, numerically ordered. Feeds the browse-view slider bounds — derive them from the whole catalog here, never from the visible page. Uses `UNION ALL` over the columns, not `json_each`: the table-valued JSON functions are not compiled into every SQLite build.
+- `GET /api/songs/:id`: One song by numeric `id` or `shortid`.
+- `GET /api/songs/:id/detail`: Charter plus per-slot note counts and NPS, parsed from `maidata.txt` (cached per shortid).
 - `GET /api/songs/:id/cover`: Streams cover image from the associated zip archive.
 - `GET /api/songs/:id/audio`: Streams preview audio file from the associated zip archive.
 
